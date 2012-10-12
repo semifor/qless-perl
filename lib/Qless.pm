@@ -66,15 +66,137 @@ Alternatively, install qless-perl from source by checking it out from repository
 
 =head2 Enqueing Jobs
 
+First things first, use Qless and create a client. The client accepts a Redis handler as a argument
+
+    use Redis;
+    use Qless;
+    
+    my $redis = Redis->new();
+    my $client = Qless::Client->new($redis);
+
+Jobs should be modules that define a process method, which must accept a single job argument:
+
+    package MyJobClass;
+    
+    sub process {
+        my ($self, $job) = @_;
+    
+        # $job is an instance of L<Qless::Job> and provides access to
+        # $job->{'data'}, a means to cancel the job ($job->cancel), and more.
+    }
+    
+    1;
+
+Now you can access a queue, and add a job to that queue.
+
+    # This references a new or existing queue 'testing'
+    my $queue = $client->queues->item('testing');
+    
+    # Let's add a job, with some data. Returns Job ID
+    $queue->put('MyJobClass', { hello => 'howdy' });
+    # => "0c53b0404c56012f69fa482a1427ab7d"
+    
+    # Now we can ask for a job
+    my $job = $queue->pop;
+    # => <Qless::Job 0c53b0404c56012f69fa482a1427ab7d (MyJobClass / testing)>
+    # And we can do the work associated with it!
+    $job->process();
+
+The job data must be serializable to JSON, and it is recommended that you use a hash for it. See below for a list of the supported job options.
+
+The argument returned by C<$queue->put> is the job ID, or jid. Every Qless job has a unique jid, and it provides a means to interact with an existing job:
+
+    # find an existing job by it's jid
+    $job = $client->jobs->item($jid);
+    
+    # Query it to find out details about it:
+    $job->{'klass'} # => the class of the job
+    $job->{'queue'} # => the queue the job is in
+    $job->{'data'}  # => the data for the job
+    $job->{'history'} # => the history of what has happened to the job sofar
+    $job->{'dependencies'} # => the jids of other jobs that must complete before this one
+    $job->{'dependents'} # => the jids of other jobs that depend on this one
+    $job->{'priority'} # => the priority of this job
+    $job->{'tags'} # => array of tags for this job
+    $job->{'original_retries'} # => the number of times the job is allowed to be retried
+    $job->{'retries_left'} # => the number of retries left
+    
+    # You can also change the job in various ways:
+    $job->move("some_other_queue"); # move it to a new queue
+    $job->cancel; # cancel the job
+    $job->tag("foo"); # add a tag
+    $job->untag("foo"); # remove a tag
+
+
 =head2 Running a Worker
 
 =head2 Job Dependencies
 
+Let's say you have one job that depends on another, but the task definitions are fundamentally different. You need to bake a turkey, and you need to make stuffing, but you can't make the turkey until the stuffing is made:
+
+    my $queue        = $client->queues->item('cook')
+    my $stuffing_jid = $queue->put('MakeStuffing', {lots => 'of butter'});
+    my $turkey_jid   = $queue->put('MakeTurkey'  , {with => 'stuffing'}, depends => [$stuffing_jid])
+
+When the stuffing job completes, the turkey job is unlocked and free to be processed.
+
 =head2 Priority
+
+Some jobs need to get popped sooner than others. Whether it's a trouble ticket, or debugging, you can do this pretty easily when you put a job in a queue:
+
+    $queue->put('MyJobClass', {foo => 'bar'}, priority => 10);
+
+What happens when you want to adjust a job's priority while it's still waiting in a queue?
+
+    my $job = $client->jobs->item('0c53b0404c56012f69fa482a1427ab7d');
+    $job->priority = 10;
+    # Now this will get popped before any job of lower priority
+
 
 =head2 Scheduled Jobs
 
+If you don't want a job to be run right away but some time in the future, you can specify a delay:
+
+    # Run at least 10 minutes from now
+    $queue->put('MyJobClass', {foo => 'bar'}, delay => 600);
+
+This doesn't guarantee that job will be run exactly at 10 minutes. You can accomplish this by changing the job's priority so that once 10 minutes has elapsed, it's put before lesser-priority jobs:
+
+    # Run in 10 minutes
+    $queue->put('MyJobClass', {foo => 'bar'}, delay => 600, priority => 100);
+
 =head2 Recurring Jobs
+
+Sometimes it's not enough simply to schedule one job, but you want to run jobs regularly. In particular, maybe you have some batch operation that needs to get run once an hour and you don't care what worker runs it. Recurring jobs are specified much like other jobs:
+
+    # Run every hour
+    $queue->recur('MyJobClass', {widget => 'warble'}, 3600)
+    # => 22ac75008a8011e182b24cf9ab3a8f3b
+
+You can even access them in much the same way as you would normal jobs:
+
+    my $job = $client->jobs->item('22ac75008a8011e182b24cf9ab3a8f3b');
+    # => < Qless::RecurringJob 22ac75008a8011e182b24cf9ab3a8f3b >
+
+Changing the interval at which it runs after the fact is trivial:
+
+    # I think I only need it to run once every two hours
+    $job->interval = 7200;
+
+If you want it to run every hour on the hour, but it's 2:37 right now, you can specify an offset which is how long it should wait before popping the first job:
+
+    # 23 minutes of waiting until it should go
+    $queue->recur('MyJobClass', {howdy => 'hello'}, 3600, offset => 23 * 60);
+
+Recurring jobs also have priority, a configurable number of retries, and tags. These settings don't apply to the recurring jobs, but rather the jobs that they create. In the case where more than one interval passes before a worker tries to pop the job, more than one job is created. The thinking is that while it's completely client-managed, the state should not be dependent on how often workers are trying to pop jobs.
+
+    # Recur every minute
+    $queue->recur('MyJobClass', {lots => 'of jobs'}, 60);
+    # ...
+    # Wait 5 minutes
+    scalar $queue->pop(10);
+    # => 5 jobs got popped
+
 
 =head2 Configuration Options
 
