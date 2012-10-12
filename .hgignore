@@ -12,3 +12,6 @@ syntax: regexp
 ^blib\b
 ^Makefile(\.old)?$
 ^pm_to_blib$
+
+\.bak$
+\.old$

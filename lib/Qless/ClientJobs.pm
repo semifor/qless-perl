@@ -2,6 +2,7 @@ package Qless::ClientJobs;
 use strict; use warnings;
 use JSON::XS qw(decode_json encode_json);
 use Qless::Job;
+use Qless::RecurringJob;
 
 sub new {
 	my $class = shift;

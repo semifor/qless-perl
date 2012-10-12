@@ -1,0 +1,9 @@
+\B\.hg\b
+^\.hgignore$
+
+^MANIFEST\.
+^Makefile$
+^Makefile\.old$
+^blib/
+^MakeMaker-\d
+^pm_to_blib$
