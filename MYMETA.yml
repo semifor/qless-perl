@@ -19,6 +19,7 @@ no_index:
     - t
     - inc
 requires:
+  Class::Load: 0
   File::ShareDir: 0
   JSON::XS: 0
   Redis: 0

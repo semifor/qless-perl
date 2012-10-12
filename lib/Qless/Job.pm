@@ -1,7 +1,6 @@
 package Qless::Job;
 use strict; use warnings;
 use base 'Qless::BaseJob';
-use Data::Dumper;
 use JSON::XS qw(decode_json encode_json);
 use Class::Load qw(try_load_class);
 

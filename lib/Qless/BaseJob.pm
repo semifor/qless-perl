@@ -1,6 +1,5 @@
 package Qless::BaseJob;
 use strict; use warnings;
-use Data::Dumper;
 
 sub new {
 	my $class = shift;
