@@ -18,6 +18,10 @@ sub new {
 	$self;
 }
 
+sub generate_jid {
+	my ($self, $data) = @_;
+	return $self->{'worker_name'}.'-'.time.'-'.sprintf('%06d', int(rand(999999)));
+}
 
 sub jobs {
 	my ($self) = @_;
@@ -45,7 +49,8 @@ sub heartbeat {
 sub put {
 	my ($self, $klass, $data, $priority, $tags, $delay, $retries, $jid, $depends) = @_;
 
-	return $self->{'client'}->_put([$self->{'name'}], $jid || $self->generage_id,
+	return $self->{'client'}->_put([$self->{'name'}],
+		$jid || $self->generate_jid($data),
 		$klass,
 		encode_json($data),
 		time,
@@ -61,7 +66,7 @@ sub recur {
 	my ($self, $klass, $data, $interval, $offset, $priority, $tags, $retries, $jid) = @_;
 
 	return $self->{'client'}->_recur([], 'on', $self->{'name'},
-		$jid || $self->generate_id,
+		$jid || $self->generate_jid($data),
 		$klass,
 		encode_json($data),
 		time,
@@ -75,7 +80,7 @@ sub recur {
 
 sub pop {
 	my ($self, $count) = @_;
-	my $jobs = [ map { Qless::Job->new($self->{'client'}, %{ decode_json($_) }) }
+	my $jobs = [ map { Qless::Job->new($self->{'client'}, decode_json($_)) }
 		@{ $self->{'client'}->_pop([$self->{'name'}], $self->{'worker_name'}, $count||1, time) } ];
 	if (!defined $count) {
 		return scalar @{ $jobs } ?  $jobs->[0] : undef;
@@ -86,7 +91,7 @@ sub pop {
 
 sub peek {
 	my ($self, $count) = @_;
-	my $jobs = [ map { Qless::Job->new($self->{'client'}, %{ decode_json($_) }) }
+	my $jobs = [ map { Qless::Job->new($self->{'client'}, decode_json($_)) }
 		@{ $self->{'client'}->_peek([$self->{'name'}], $count||1, time) } ];
 	if (!defined $count) {
 		return scalar @{ $jobs } ?  $jobs->[0] : undef;
@@ -102,6 +107,17 @@ sub stats {
 
 sub length {
 	my ($self) = @_;
+
+	my $redis = $self->{'client'}->{'redis'};
+	my $sum = 0;
+	my $sum_cb = sub { $sum += shift };
+
+	$redis->zcard('ql:q:'.$self->{'name'}.'-locks',     $sum_cb);
+	$redis->zcard('ql:q:'.$self->{'name'}.'-work',      $sum_cb);
+	$redis->zcard('ql:q:'.$self->{'name'}.'-scheduled', $sum_cb);
+	$redis->wait_all_responses;
+
+	return $sum;
 }
 
 1;

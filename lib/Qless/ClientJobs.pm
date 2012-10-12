@@ -1,5 +1,6 @@
 package Qless::ClientJobs;
 use strict; use warnings;
+use JSON::XS qw(decode_json encode_json);
 use Qless::Job;
 
 sub new {
@@ -24,7 +25,7 @@ sub complete {
 sub tracked {
 	my ($self) = @_;
 	my $results = decode_json($self->{'client'}->_track());
-	$results->{'jobs'} = [ map { Qless::Job->new($self, %{ $_ }) } @{ $results->{'jobs'} } ];
+	$results->{'jobs'} = [ map { Qless::Job->new($self, $_) } @{ $results->{'jobs'} } ];
 
 	return $results;
 }
@@ -44,11 +45,11 @@ sub failed {
 	}
 
 	my $results =  decode_json($self->{'client'}->_failed([], $group, $offset, $count));
-	$results->{'jobs'} = [ map { Qless::Job->new($self, %{ $_ }) } @{ $results->{'jobs'} } ];
+	$results->{'jobs'} = [ map { Qless::Job->new($self, $_) } @{ $results->{'jobs'} } ];
 	return $results;
 }
 
-sub by_jid {
+sub item {
 	my ($self, $jid) = @_;
 
 	my $results = $self->{'client'}->_get([], $jid);
@@ -56,10 +57,10 @@ sub by_jid {
 		$results = $self->{'client'}->_recur([], $jid);
 		return undef if !$results;
 
-		return Qless::RecurringJob($self->{'client'}, %{ decode_json($results) });
+		return Qless::RecurringJob->new($self->{'client'}, decode_json($results));
 	}
 
-	return Qless::Job($self->{'client'}, %{ decode_json($results) });
+	return Qless::Job->new($self->{'client'}, decode_json($results));
 }
 
 
