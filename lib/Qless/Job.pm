@@ -3,6 +3,7 @@ use strict; use warnings;
 use base 'Qless::BaseJob';
 use Data::Dumper;
 use JSON::XS qw(decode_json encode_json);
+use Class::Load qw(try_load_class);
 
 sub new {
 	my $class = shift;
@@ -33,6 +34,33 @@ sub ttl {
 
 sub process {
 	my ($self) = @_;
+
+	my $class = $self->klass;
+	if(!try_load_class($class)) {
+		return $self->fail($self->{'queue_name'}.'-class-missing', $class. ' is missing');
+	}
+
+	my $method;
+
+	if ($class->can($self->{'queue_name'})) {
+		$method = $self->{'queue_name'};
+	}
+	elsif ($class->can('process')) {
+		$method = 'process';
+	}
+
+	if (!$method) {
+		return $self->fail($self->{'queue_name'}.'-method-missing', $class. ' is missing a method "'.$self->{'queue_name'}.'" or "process"');
+	}
+
+	eval {
+		$class->$method($self);
+	};
+
+	if ($@) {
+		return $self->fail($self->{'queue_name'}.'-'.$class.'-'.$method, $@);
+	}
+
 }
 
 sub move {
