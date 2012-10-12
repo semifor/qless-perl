@@ -1,0 +1,13 @@
+syntax: regexp
+
+# vim files
+\.swp$
+\.swo$
+\.un~$
+^\.vim-session$
+
+^\.stuff$
+
+^blib\b
+^Makefile$
+^pm_to_blib$
