@@ -1,4 +1,8 @@
 package Qless::Worker;
+=head1 NAME
+
+Qless::Worker
+=cut
 use strict; use warnings;
 
 sub new {

@@ -1,4 +1,8 @@
 package Qless::Client;
+=head1 NAME
+
+Qless::Client
+=cut
 use strict; use warnings;
 use JSON::XS qw(decode_json);
 use Sys::Hostname qw(hostname);
@@ -8,6 +12,10 @@ use Qless::Workers;
 use Qless::Queues;
 use Qless::ClientJobs;
 
+=head1 METHODS
+
+=head2 C<new>
+=cut
 sub new {
 	my $class = shift;
 	my ($redis) = @_;
@@ -47,16 +55,28 @@ sub _mk_private_lua_method {
 	
 }
 
+=head2 C<track($jid)>
+
+Begin tracking the job
+=cut
 sub track {
 	my ($self, $jid) = @_;
 	return $self->_track([], 'track', $jid, time);
 }
 
+=head2 C<untrack($jid)>
+
+Stop tracking the job
+=cut
 sub untrack {
 	my ($self, $jid) = @_;
 	return $self->_track([], 'untrack', $jid, time);
 }
 
+=head2 C<tags([$offset, $count])>
+
+The most common tags among jobs
+=cut
 sub tags {
 	my ($self, $offset, $count) = @_;
 	$offset ||= 0;
@@ -65,17 +85,43 @@ sub tags {
 	return decode_json($self->_tag([], 'top', $offset, $count));
 }
 
-# TODO
+=head2 C<event - TBD>
+
+Listen for a single event
+=cut
 sub event { }
+
+=head2 C<events -TBD>
+
+Listen indefinitely for all events
+=cut
 sub events { }
 
 # accessors
+=head2 C<config>
+=cut
 sub config { $_[0]->{'config'} };
+
+=head2 C<workers([$name])>
+=cut
 sub workers { $#_ == 1 ? $_[0]->{'workers'}->item($_[1]) : $_[0]->{'workers'} }
+
+=head2 C<queues([$name])>
+=cut
 sub queues  { $#_ == 1 ? $_[0]->{'queues'}->item($_[1])  : $_[0]->{'queues'} }
+
+=head2 C<jobs([$jid])>
+
+If jid is specified this method returns a job object corresponding to that jid, or C<undef> if it doesn't exist. Otherwise it returns L<Qless::ClientJobs> object
+=cut
 sub jobs    { $#_ == 1 ? $_[0]->{'jobs'}->item($_[1])    : $_[0]->{'jobs'} }
 
+=head2 C<worker_name>
+=cut
 sub worker_name { $_[0]->{'worker_name'} }
+
+=head2 C<redis>
+=cut
 sub redis       { $_[0]->{'redis'} }
 
 1;

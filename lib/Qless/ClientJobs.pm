@@ -1,9 +1,17 @@
 package Qless::ClientJobs;
+=head1 NAME
+
+Qless::ClientJobs
+=cut
 use strict; use warnings;
 use JSON::XS qw(decode_json encode_json);
 use Qless::Job;
 use Qless::RecurringJob;
 
+=head1 METHODS
+
+=head2 C<new>
+=cut
 sub new {
 	my $class = shift;
 	my ($client) = @_;
@@ -16,6 +24,10 @@ sub new {
 	$self;
 }
 
+=head2 C<complete([$offset, $count])>
+
+Return the paginated jids of complete jobs
+=cut
 sub complete {
 	my ($self, $offset, $count) = @_;
 	$offset ||= 0;
@@ -23,6 +35,10 @@ sub complete {
 	return $self->{'client'}->_jobs([], 'complete', $offset, $count);
 }
 
+=head2 C<tracked>
+
+Return an array of job objects that are being tracked
+=cut
 sub tracked {
 	my ($self) = @_;
 	my $results = decode_json($self->{'client'}->_track());
@@ -31,6 +47,10 @@ sub tracked {
 	return $results;
 }
 
+=head2 C<tagged($tag[, $offset, $count])>
+
+Return the paginated jids of jobs tagged with a tag
+=cut
 sub tagged {
 	my ($self, $tag, $offset, $count) = @_;
 	$offset ||= 0;
@@ -39,6 +59,11 @@ sub tagged {
 	return decode_json($self->{'client'}->_tag([], 'get', $tag, $offset, $count));
 }
 
+=head2 C<failed([$group, $offset, $count])>
+
+If no group is provided, this returns a JSON blob of the counts of the various types of failures known.
+If a type is provided, returns paginated job objects affected by that kind of failure.
+=cut
 sub failed {
 	my ($self, $group, $offset, $count) = @_;
 	if (!$group) {
@@ -50,6 +75,10 @@ sub failed {
 	return $results;
 }
 
+=head2 C<item($jid)>
+
+Get a job object corresponding to that jid, or C<undef> if it doesn't exist
+=cut
 sub item {
 	my ($self, $jid) = @_;
 

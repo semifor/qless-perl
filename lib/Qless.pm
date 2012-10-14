@@ -298,6 +298,8 @@ qless-core: L<https://github.com/seomoz/qless-core|https://github.com/seomoz/qle
 
 =head1 AUTHOR
 
-qless and qless-core - SEOmoz
+qless, qless-py and qless-core - SEOmoz
+
+qless-perl - Anatoliy Lapitskiy <nuclon@cpan.org>
 
 =cut

@@ -1,4 +1,8 @@
 package Qless::Job;
+=head1 NAME
+
+Qless::Job
+=cut
 use strict; use warnings;
 use base 'Qless::BaseJob';
 use JSON::XS qw(decode_json encode_json);

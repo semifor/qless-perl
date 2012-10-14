@@ -1,4 +1,8 @@
 package Qless::Lua;
+=head1 NAME
+
+Qless::Lua
+=cut
 use strict; use warnings;
 use File::ShareDir qw();
 use overload '&{}' => sub { my $self = shift; sub { $self->call(@_) }; }, fallback => 1;

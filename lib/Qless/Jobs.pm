@@ -1,4 +1,8 @@
 package Qless::Jobs;
+=head1 NAME
+
+Qless::jobs
+=cut
 use strict; use warnings;
 sub new {
 	my $class = shift;

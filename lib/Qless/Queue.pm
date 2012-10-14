@@ -1,9 +1,17 @@
 package Qless::Queue;
+=head1 NAME
+
+Qless:Queue
+=cut
 use strict; use warnings;
 use JSON::XS qw(decode_json encode_json);
 use Qless::Jobs;
 use Qless::Job;
 
+=head1 METHODS
+
+=head2 C<new>
+=cut
 sub new {
 	my $class = shift;
 	my ($name, $client, $worker_name) = @_;
@@ -23,16 +31,23 @@ sub generate_jid {
 	return $self->{'worker_name'}.'-'.time.'-'.sprintf('%06d', int(rand(999999)));
 }
 
+
+=head2 C<jobs>
+=cut
 sub jobs {
 	my ($self) = @_;
 	Qless::Jobs->new($self->{'name'}, $self->{'client'});
 }
 
+=head2 C<counts>
+=cut
 sub counts {
 	my ($self) = @_;
 	return decode_json($self->{'client'}->_queues([], time, $self->{'name'}));
 }
 
+=head2 C<heartbeat>
+=cut
 sub heartbeat {
 	my ($self, $new_value) = @_;
 
@@ -46,6 +61,8 @@ sub heartbeat {
 	return $config->get($self->{'name'}.'-heartbeat') || $config->get('heartbeat') || 60;
 }
 
+=head2 C<put>
+=cut
 sub put {
 	my ($self, $klass, $data, %args ) = @_;
 
@@ -62,6 +79,8 @@ sub put {
 	);
 }
 
+=head2 C<recur>
+=cut
 sub recur {
 	my ($self, $klass, $data, $interval, %args) = @_;
 
@@ -78,6 +97,8 @@ sub recur {
 
 }
 
+=head2 C<pop>
+=cut
 sub pop {
 	my ($self, $count) = @_;
 	my $jobs = [ map { Qless::Job->new($self->{'client'}, decode_json($_)) }
@@ -89,6 +110,8 @@ sub pop {
 	return $jobs;
 }
 
+=head2 C<peek>
+=cut
 sub peek {
 	my ($self, $count) = @_;
 	my $jobs = [ map { Qless::Job->new($self->{'client'}, decode_json($_)) }
@@ -100,11 +123,15 @@ sub peek {
 	return $jobs;
 }
 
+=head2 C<stats>
+=cut
 sub stats {
 	my ($self, $date) = @_;
 	return decode_json($self->{'client'}->_stats([], $self->{'name'}, $date || time));
 }
 
+=head2 C<length>
+=cut
 sub length {
 	my ($self) = @_;
 

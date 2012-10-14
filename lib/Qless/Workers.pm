@@ -1,4 +1,8 @@
 package Qless::Workers;
+=head1 NAME
+
+Qless::Workers
+=cut
 use strict; use warnings;
 use JSON::XS qw(decode_json);
 
