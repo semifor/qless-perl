@@ -10,8 +10,8 @@ my $redis = Redis->new();
 
 my $client = Qless::Client->new($redis);
 
-my $q = $client->queues->item('testing');
+my $q = $client->queues('testing');
 
 my $jid = $q->put('Qless::Job', {'test' => 'put_get'});
 
-my $job = $client->jobs->item($jid);
+my $job = $client->jobs($jid);

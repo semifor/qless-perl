@@ -70,10 +70,12 @@ sub event { }
 sub events { }
 
 # accessors
-sub config { shift->{'config'} };
-sub workers { shift->{'workers'} };
-sub queues { shift->{'queues'} };
-sub jobs { shift->{'jobs'} };
+sub config { $_[0]->{'config'} };
+sub workers { $#_ == 1 ? $_[0]->{'workers'}->item($_[1]) : $_[0]->{'workers'} }
+sub queues  { $#_ == 1 ? $_[0]->{'queues'}->item($_[1])  : $_[0]->{'queues'} }
+sub jobs    { $#_ == 1 ? $_[0]->{'jobs'}->item($_[1])    : $_[0]->{'jobs'} }
 
+sub worker_name { $_[0]->{'worker_name'} }
+sub redis       { $_[0]->{'redis'} }
 
 1;

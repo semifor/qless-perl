@@ -110,16 +110,16 @@ The argument returned by C<$queue->put> is the job ID, or jid. Every Qless job h
     $job = $client->jobs->item($jid);
     
     # Query it to find out details about it:
-    $job->{'klass'} # => the class of the job
-    $job->{'queue'} # => the queue the job is in
-    $job->{'data'}  # => the data for the job
-    $job->{'history'} # => the history of what has happened to the job sofar
-    $job->{'dependencies'} # => the jids of other jobs that must complete before this one
-    $job->{'dependents'} # => the jids of other jobs that depend on this one
-    $job->{'priority'} # => the priority of this job
-    $job->{'tags'} # => array of tags for this job
-    $job->{'original_retries'} # => the number of times the job is allowed to be retried
-    $job->{'retries_left'} # => the number of retries left
+    $job->klass # => the class of the job
+    $job->queue # => the queue the job is in
+    $job->data  # => the data for the job
+    $job->history # => the history of what has happened to the job sofar
+    $job->dependencies # => the jids of other jobs that must complete before this one
+    $job->dependents # => the jids of other jobs that depend on this one
+    $job->priority # => the priority of this job
+    $job->tags # => array of tags for this job
+    $job->original_retries # => the number of times the job is allowed to be retried
+    $job->retries_left # => the number of retries left
     
     # You can also change the job in various ways:
     $job->move("some_other_queue"); # move it to a new queue
@@ -134,7 +134,7 @@ The argument returned by C<$queue->put> is the job ID, or jid. Every Qless job h
 
 Let's say you have one job that depends on another, but the task definitions are fundamentally different. You need to bake a turkey, and you need to make stuffing, but you can't make the turkey until the stuffing is made:
 
-    my $queue        = $client->queues->item('cook')
+    my $queue        = $client->queues('cook')
     my $stuffing_jid = $queue->put('MakeStuffing', {lots => 'of butter'});
     my $turkey_jid   = $queue->put('MakeTurkey'  , {with => 'stuffing'}, depends => [$stuffing_jid])
 
@@ -148,8 +148,8 @@ Some jobs need to get popped sooner than others. Whether it's a trouble ticket, 
 
 What happens when you want to adjust a job's priority while it's still waiting in a queue?
 
-    my $job = $client->jobs->item('0c53b0404c56012f69fa482a1427ab7d');
-    $job->priority = 10;
+    my $job = $client->jobs('0c53b0404c56012f69fa482a1427ab7d');
+    $job->priority(10);
     # Now this will get popped before any job of lower priority
 
 
@@ -181,7 +181,7 @@ You can even access them in much the same way as you would normal jobs:
 Changing the interval at which it runs after the fact is trivial:
 
     # I think I only need it to run once every two hours
-    $job->interval = 7200;
+    $job->interval(7200);
 
 If you want it to run every hour on the hour, but it's 2:37 right now, you can specify an offset which is how long it should wait before popping the first job:
 

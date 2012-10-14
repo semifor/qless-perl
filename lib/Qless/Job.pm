@@ -26,6 +26,17 @@ sub new {
 	$self;
 }
 
+sub state            { $_[0]->{'state'} }
+sub tracked          { $_[0]->{'tracked'} }
+sub failure          { $_[0]->{'failure'} }
+sub history          { $_[0]->{'history'} }
+sub dependents       { $_[0]->{'dependents'} }
+sub dependencies     { $_[0]->{'dependencies'} }
+sub expires_at       { $_[0]->{'expires_at'} }
+sub original_retries { $_[0]->{'original_retries'} }
+sub retries_left     { $_[0]->{'retries_left'} }
+sub worker_name      { $_[0]->{'worker_name'} }
+
 sub ttl {
 	my ($self) = @_;
 	return $self->{'expires_at'} - time;
@@ -36,20 +47,20 @@ sub process {
 
 	my $class = $self->klass;
 	if(!try_load_class($class)) {
-		return $self->fail($self->{'queue_name'}.'-class-missing', $class. ' is missing');
+		return $self->fail($self->queue_name.'-class-missing', $class. ' is missing');
 	}
 
 	my $method;
 
-	if ($class->can($self->{'queue_name'})) {
-		$method = $self->{'queue_name'};
+	if ($class->can($self->queue_name)) {
+		$method = $self->queue_name;
 	}
 	elsif ($class->can('process')) {
 		$method = 'process';
 	}
 
 	if (!$method) {
-		return $self->fail($self->{'queue_name'}.'-method-missing', $class. ' is missing a method "'.$self->{'queue_name'}.'" or "process"');
+		return $self->fail($self->queue_name.'-method-missing', $class. ' is missing a method "'.$self->queue_name.'" or "process"');
 	}
 
 	eval {
@@ -57,7 +68,7 @@ sub process {
 	};
 
 	if ($@) {
-		return $self->fail($self->{'queue_name'}.'-'.$class.'-'.$method, $@);
+		return $self->fail($self->queue_name.'-'.$class.'-'.$method, $@);
 	}
 
 }
@@ -66,9 +77,9 @@ sub move {
 	my ($self, $queue, $delay, $depends) = @_;
 
 	return $self->{'client'}->_put([$queue],
-		$self->{'jid'},
-		$self->{'klass_name'},
-		encode_json($self->{'data'}),
+		$self->jid,
+		$self->klass,
+		encode_json($self->data),
 		time,
 		$delay||0,
 		'depends', encode_json($depends||[])
@@ -79,13 +90,13 @@ sub complete {
 	my ($self, $next, $delay, $depends) = @_;
 	
 	if ($next) {
-		return $self->{'client'}->_complete([], $self->{'jid'}, $self->{'client'}->{'worker_name'}, $self->{'queue_name'},
-			time, encode_json($self->{'data'}), 'next', $next, 'delay', $delay||0, 'depends', encode_json($depends||[])
+		return $self->{'client'}->_complete([], $self->jid, $self->client->worker_name, $self->queue_name,
+			time, encode_json($self->data), 'next', $next, 'delay', $delay||0, 'depends', encode_json($depends||[])
 		);
 	}
 	else {
-		return $self->{'client'}->_complete([], $self->{'jid'}, $self->{'client'}->{'worker_name'}, $self->{'queue_name'},
-			time, encode_json($self->{'data'})
+		return $self->{'client'}->_complete([], $self->jid, $self->client->worker_name, $self->queue_name,
+			time, encode_json($self->data)
 		);
 	}
 }
@@ -93,8 +104,8 @@ sub complete {
 sub heartbeat {
 	my ($self) = @_;
 
-	return $self->{'expires_at'} = $self->{'client'}->_heartbeat([],
-		$self->{'jid'}, $self->{'client'}->{'worker_name'}, time, encode_json($self->{'data'})
+	return $self->{'expires_at'} = $self->client->_heartbeat([],
+		$self->jid, $self->client->worker_name, time, encode_json($self->data)
 	) || 0;
 }
 
@@ -102,38 +113,38 @@ sub heartbeat {
 sub fail {
 	my ($self, $group, $message) = @_;
 
-	return $self->{'client'}->_fail([], $self->{'jid'}, $self->{'client'}->{'worker_name'}, $group, $message, time, encode_json($self->{'data'}));
+	return $self->client->_fail([], $self->jid, $self->client->worker_name, $group, $message, time, encode_json($self->data));
 }
 
 sub track {
 	my ($self) = @_;
 
-	return $self->{'client'}->_track([], 'track', $self->{'jid'}, time);
+	return $self->client->_track([], 'track', $self->jid, time);
 }
 
 sub untrack {
 	my ($self) = @_;
 
-	return $self->{'client'}->_track([], 'untrack', $self->{'jid'}, time);
+	return $self->client->_track([], 'untrack', $self->jid, time);
 }
 
 sub retry {
 	my ($self, $delay) = @_;
 
-	return $self->{'client'}->_retry([], $self->{'jid'}, $self->{'queue_name'}, $self->{'worker_name'}, time, $delay||0);
+	return $self->client->_retry([], $self->jid, $self->queue_name, $self->worker_name, time, $delay||0);
 }
 
 sub depend {
 	my ($self, @args) = @_;
-	return $self->{'client'}->_depends([], $self->{'jid'}, 'on', @args);
+	return $self->client->_depends([], $self->jid, 'on', @args);
 }
 
 sub undepend {
 	my ($self, @args) = @_;
 	if ($args[0] eq 'all') {
-		return $self->{'client'}->_depends([], $self->{'jid'}, 'off', 'all');
+		return $self->client->_depends([], $self->jid, 'off', 'all');
 	}
-	return $self->{'client'}->_depends([], $self->{'jid'}, 'off', @args);
+	return $self->client->_depends([], $self->jid, 'off', @args);
 }
 
 1;

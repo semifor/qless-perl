@@ -16,7 +16,7 @@ sub new {
 		$self->{$key} = $args->{ $key };
 	}
 
-	$self->{'klass_name'} = $args->{'klass'};
+	$self->{'klass'}      = $args->{'klass'};
 	$self->{'queue_name'} = $args->{'queue'};
 	$self->{'tags'}       = $args->{'tags'} || [];
 
@@ -31,14 +31,15 @@ sub priority {
 
 sub queue {
 	my ($self) = @_;
-
-	return $self->{'queue'} = $self->{'client'}->queues->item($self->{'queue_name'});
+	return $self->{'queue'} = $self->{'client'}->queues($self->{'queue_name'});
 }
 
-sub klass {
-	my ($self) = @_;
-	return $self->{'klass_name'};
-}
+sub client { $_[0]->{'client'} }
+sub queue_name { $_[0]->{'queue_name'} }
+sub klass { $_[0]->{'klass'} }
+sub data { $_[0]->{'data'} }
+sub jid { $_[0]->{'jid'} }
+sub tags { $_[0]->{'tags'} }
 
 sub cancel {
 	my ($self) = @_;
