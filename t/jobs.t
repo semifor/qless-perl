@@ -14,4 +14,12 @@ my $q = $client->queues('testing');
 
 my $jid = $q->put('Qless::Job', {'test' => 'put_get'});
 
+#warn $jid;
+
 my $job = $client->jobs($jid);
+
+$job->track;
+
+#$job->tag('testtag');
+
+#warn Dumper($client->jobs->tracked);

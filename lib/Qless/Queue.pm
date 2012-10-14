@@ -47,33 +47,33 @@ sub heartbeat {
 }
 
 sub put {
-	my ($self, $klass, $data, $priority, $tags, $delay, $retries, $jid, $depends) = @_;
+	my ($self, $klass, $data, %args ) = @_;
 
 	return $self->{'client'}->_put([$self->{'name'}],
-		$jid || $self->generate_jid($data),
+		$args{'jid'} || $self->generate_jid($data),
 		$klass,
 		encode_json($data),
 		time,
-		$delay || 0,
-		'priority', $priority || 0,
-		'tags', encode_json($tags || []),
-		'retries', $retries || 5,
-		'depends', encode_json($depends || []),
+		$args{'delay'} || 0,
+		'priority', $args{'priority'} || 0,
+		'tags', encode_json($args{'tags'} || []),
+		'retries', $args{'retries'} || 5,
+		'depends', encode_json($args{'depends'} || []),
 	);
 }
 
 sub recur {
-	my ($self, $klass, $data, $interval, $offset, $priority, $tags, $retries, $jid) = @_;
+	my ($self, $klass, $data, $interval, %args) = @_;
 
 	return $self->{'client'}->_recur([], 'on', $self->{'name'},
-		$jid || $self->generate_jid($data),
+		$args{'jid'} || $self->generate_jid($data),
 		$klass,
 		encode_json($data),
 		time,
-		'interval', $interval, $offset || 0,
-		'priority', $priority || 0,
-		'tags', encode_json($tags || []),
-		'retries', $retries || 5,
+		'interval', $interval, $args{'offset'} || 0,
+		'priority', $args{'priority'} || 0,
+		'tags', encode_json($args{'tags'} || []),
+		'retries', $args{'retries'} || 5,
 	);
 
 }
