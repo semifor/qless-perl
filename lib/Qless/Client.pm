@@ -107,6 +107,8 @@ sub config { $_[0]->{'config'} };
 sub workers { $#_ == 1 ? $_[0]->{'workers'}->item($_[1]) : $_[0]->{'workers'} }
 
 =head2 C<queues([$name])>
+
+If the name is specified, this method gets or creates a queue with that name. Otherwise it returns L<Qless::Queues> object;
 =cut
 sub queues  { $#_ == 1 ? $_[0]->{'queues'}->item($_[1])  : $_[0]->{'queues'} }
 

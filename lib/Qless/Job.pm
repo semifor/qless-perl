@@ -50,6 +50,7 @@ sub process {
 	my ($self) = @_;
 
 	my $class = $self->klass;
+
 	if(!try_load_class($class)) {
 		return $self->fail($self->queue_name.'-class-missing', $class. ' is missing');
 	}
@@ -72,6 +73,7 @@ sub process {
 	};
 
 	if ($@) {
+		print STDERR "Error: $@\n";
 		return $self->fail($self->queue_name.'-'.$class.'-'.$method, $@);
 	}
 
@@ -94,12 +96,12 @@ sub complete {
 	my ($self, $next, $delay, $depends) = @_;
 	
 	if ($next) {
-		return $self->{'client'}->_complete([], $self->jid, $self->client->worker_name, $self->queue_name,
+		return $self->client->_complete([], $self->jid, $self->client->worker_name, $self->queue_name,
 			time, encode_json($self->data), 'next', $next, 'delay', $delay||0, 'depends', encode_json($depends||[])
 		);
 	}
 	else {
-		return $self->{'client'}->_complete([], $self->jid, $self->client->worker_name, $self->queue_name,
+		return $self->client->_complete([], $self->jid, $self->client->worker_name, $self->queue_name,
 			time, encode_json($self->data)
 		);
 	}
