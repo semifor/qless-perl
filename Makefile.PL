@@ -29,6 +29,7 @@ WriteMakefile(
 		'Redis' => 0,
 		'JSON::XS' => 0,
 		'File::ShareDir' => 0,
+		'File::ShareDir::Install' => 0,
 		'Class::Load' => 0,
 	},
 	dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
