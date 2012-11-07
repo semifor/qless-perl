@@ -6,20 +6,40 @@ use Data::Dumper;
 
 use_ok('Qless::Client');
 
-my $redis = Redis->new();
 
-my $client = Qless::Client->new($redis);
+SKIP: {
+	my $redis = eval { Redis->new() };
+	skip 'No Redis server at localhost', 1, $@;
 
-my $q = $client->queues('testing');
+	my $client = Qless::Client->new($redis);
 
-my $jid = $q->put('Qless::Job', {'test' => 'put_get'});
+	my $q = $client->queues('testing');
+
+	my $jid = $q->put('Test::Qless::Job', {'test' => 'put_get'});
 
 #warn $jid;
 
-my $job = $client->jobs($jid);
+	my $job = $client->jobs($jid);
 
-$job->track;
+	$job->track;
+
+
+	my $qjob = $q->pop;
+
+	warn Dumper($qjob);
+	$qjob->process;
+}
 
 #$job->tag('testtag');
 
 #warn Dumper($client->jobs->tracked);
+
+package Test::Qless::Job;
+use strict; use warnings;
+use Data::Dumper;
+
+sub process {
+	my ($self, $job) = @_;
+	warn "!!!!";
+}
+1;
