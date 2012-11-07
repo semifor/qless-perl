@@ -1,13 +1,12 @@
 use 5.006;
 use strict;
 use warnings;
-use ExtUtils::MakeMaker;
+use ExtUtils::MakeMaker 6.31;
+
 use File::ShareDir::Install;
-
-
 install_share dist => 'share';
 
-WriteMakefile(
+my %WriteMakefileArgs = (
 	NAME                => 'Qless',
 	ABSTRACT            => 'Perl binding for qless job queue system',
 	AUTHOR              => q{Anatoliy Lapitskiy <nuclon@cpan.org>},
@@ -29,12 +28,31 @@ WriteMakefile(
 		'Redis' => 0,
 		'JSON::XS' => 0,
 		'File::ShareDir' => 0,
-		'File::ShareDir::Install' => 0,
 		'Class::Load' => 0,
+		'File::ShareDir::Install' => 0,
 	},
 	dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
 	clean               => { FILES => 'Qless-*' },
 );
+
+unless ( eval { ExtUtils::MakeMaker->VERSION(6.56) } ) {
+  my $br = delete $WriteMakefileArgs{BUILD_REQUIRES};
+  my $pp = $WriteMakefileArgs{PREREQ_PM};
+  for my $mod ( keys %$br ) {
+    if ( exists $pp->{$mod} ) {
+      $pp->{$mod} = $br->{$mod} if $br->{$mod} > $pp->{$mod};
+    }
+    else {
+      $pp->{$mod} = $br->{$mod};
+    }
+  }
+}
+
+delete $WriteMakefileArgs{CONFIGURE_REQUIRES}
+  unless eval { ExtUtils::MakeMaker->VERSION(6.52) };
+
+WriteMakefile(%WriteMakefileArgs);
+
 
 {
 	package MY;

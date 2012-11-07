@@ -30,9 +30,7 @@ Return the paginated jids of complete jobs
 =cut
 sub complete {
 	my ($self, $offset, $count) = @_;
-	$offset ||= 0;
-	$count  ||= 25;
-	return $self->{'client'}->_jobs([], 'complete', $offset, $count);
+	return $self->{'client'}->_jobs([], 'complete', $offset||0, $count||25);
 }
 
 =head2 C<tracked>
@@ -53,10 +51,7 @@ Return the paginated jids of jobs tagged with a tag
 =cut
 sub tagged {
 	my ($self, $tag, $offset, $count) = @_;
-	$offset ||= 0;
-	$count  ||= 25;
-
-	return decode_json($self->{'client'}->_tag([], 'get', $tag, $offset, $count));
+	return decode_json($self->{'client'}->_tag([], 'get', $tag, $offset||0, $count||25));
 }
 
 =head2 C<failed([$group, $offset, $count])>
@@ -70,8 +65,11 @@ sub failed {
 		return decode_json($self->{'client'}->_failed());
 	}
 
-	my $results =  decode_json($self->{'client'}->_failed([], $group, $offset, $count));
-	$results->{'jobs'} = [ map { Qless::Job->new($self, $_) } @{ $results->{'jobs'} } ];
+	my $results = decode_json($self->{'client'}->_failed([], $group, $offset||0, $count||25));
+
+	if ($results->{'jobs'} && ref $results->{'jobs'} eq 'ARRAY') {
+		$results->{'jobs'} = [ map { Qless::Job->new($self->{'client'}, $_) } @{ $results->{'jobs'} } ];
+	}
 	return $results;
 }
 

@@ -31,6 +31,10 @@ sub generate_jid {
 	return $self->{'worker_name'}.'-'.time.'-'.sprintf('%06d', int(rand(999999)));
 }
 
+sub client       { $_[0]->{'client'} }
+sub name         { $_[0]->{'name'} }
+sub worker_name  { $_[0]->{'worker_name'} }
+
 
 =head2 C<jobs>
 =cut
