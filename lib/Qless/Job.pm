@@ -51,8 +51,9 @@ sub process {
 
 	my $class = $self->klass;
 
-	if(!try_load_class($class)) {
-		return $self->fail($self->queue_name.'-class-missing', $class. ' is missing');
+	my ($loaded, $error_message) = try_load_class($class);
+	if(!$loaded) {
+		return $self->fail($self->queue_name.'-class-missing', $class. ' is missing: '.$error_message);
 	}
 
 	my $method;
