@@ -1,62 +1,18 @@
-use 5.006;
-use strict;
-use warnings;
-use ExtUtils::MakeMaker 6.31;
-use File::ShareDir::Install;
+use inc::Module::Install;
+use Module::Install::Share;
 
-install_share dist => 'share';
+name 'Qless';
+all_from 'lib/Qless.pm';
 
-my %WriteMakefileArgs = (
-	NAME                => 'Qless',
-	ABSTRACT            => 'Perl binding for qless job queue system',
-	AUTHOR              => q{Anatoliy Lapitskiy <nuclon@cpan.org>},
-	VERSION_FROM        => 'lib/Qless.pm',
-	ABSTRACT_FROM       => 'lib/Qless.pm',
+test_requires 'Test::More';
+test_requires 'Test::Class';
 
-	BUILD_REQUIRES => {
-		'Test::More' => 0,
-		'Test::Class' => 0,
-	},
-	CONFIGURE_REQUIRES  => {
-		'File::ShareDir::Install' => 0,
-	},
+requires 'Redis';
+requires 'JSON::XS';
+requires 'File::ShareDir';
+requires 'Class::Load';
+requires 'Time::HiRes';
 
-	($ExtUtils::MakeMaker::VERSION >= 6.3002
-	  ? ('LICENSE'=> 'perl')
-	  : ()),
-	PL_FILES            => {},
-	PREREQ_PM => {
-		'Redis' => 0,
-		'JSON::XS' => 0,
-		'File::ShareDir' => 0,
-		'Class::Load' => 0,
-		'File::ShareDir::Install' => 0,
-		'Time::HiRes' => 0,
-	},
-	dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
-	clean               => { FILES => 'Qless-*' },
-);
+install_share;
 
-unless ( eval { ExtUtils::MakeMaker->VERSION(6.56) } ) {
-  my $br = delete $WriteMakefileArgs{BUILD_REQUIRES};
-  my $pp = $WriteMakefileArgs{PREREQ_PM};
-  for my $mod ( keys %$br ) {
-    if ( exists $pp->{$mod} ) {
-      $pp->{$mod} = $br->{$mod} if $br->{$mod} > $pp->{$mod};
-    }
-    else {
-      $pp->{$mod} = $br->{$mod};
-    }
-  }
-}
-
-delete $WriteMakefileArgs{CONFIGURE_REQUIRES}
-  unless eval { ExtUtils::MakeMaker->VERSION(6.52) };
-
-WriteMakefile(%WriteMakefileArgs);
-
-
-{
-	package MY;
-	use File::ShareDir::Install qw(postamble);
-}
+WriteAll;

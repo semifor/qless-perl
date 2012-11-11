@@ -3,10 +3,14 @@ use base qw(Test::Class);
 use Redis;
 use Qless::Client;
 
-sub setup :Test(setup) {
+sub setup : Test(setup) {
 	my $self = shift;
 
-	$self->{'redis'}  = Redis->new(debug=>0);
+	$self->{'redis'}  = eval { Redis->new(debug=>0) };
+	if ($@) {
+		$self->SKIP_ALL('No Redis server at localhost');
+		return;
+	}
 	$self->{'redis'}->script('flush');
 
 	$self->{'client'} = Qless::Client->new($self->{'redis'});

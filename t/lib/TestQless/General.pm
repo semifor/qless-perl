@@ -143,9 +143,34 @@ sub test_same_priority_order : Tests(1) {
 	push @{ $popped }, map { $self->{'q'}->pop->jid } 0..99;
 
 	is_deeply $jids, $popped;
-
 }
 
+
+# In this test, we'd like to make sure that we can't pop
+# off a job scheduled for in the future until it has been
+# considered valid
+#   1) Put a job scheduled for 10s from now
+#   2) Ensure an empty pop
+#   3) 'Wait' 10s
+#   4) Ensure pop contains that job
+# This is /ugly/, but we're going to path the time function so
+# that we can fake out how long these things are waiting
+sub test_scheduled : Tests(5) {
+	my $self = shift;
+
+	is $self->{'q'}->length, 0, 'Starting with empty queue';
+	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'scheduled'}, delay => 10);
+
+	is $self->{'q'}->pop, undef;
+	is $self->{'q'}->length, 1;
+
+	sleep(11);
+
+	my $job = $self->{'q'}->pop;
+	ok $job;
+	is $job->jid, $jid;
+
+}
 
 
 1;
