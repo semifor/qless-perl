@@ -2,8 +2,8 @@ use 5.006;
 use strict;
 use warnings;
 use ExtUtils::MakeMaker 6.31;
-
 use File::ShareDir::Install;
+
 install_share dist => 'share';
 
 my %WriteMakefileArgs = (
@@ -15,6 +15,7 @@ my %WriteMakefileArgs = (
 
 	BUILD_REQUIRES => {
 		'Test::More' => 0,
+		'Test::Class' => 0,
 	},
 	CONFIGURE_REQUIRES  => {
 		'File::ShareDir::Install' => 0,
@@ -30,6 +31,7 @@ my %WriteMakefileArgs = (
 		'File::ShareDir' => 0,
 		'Class::Load' => 0,
 		'File::ShareDir::Install' => 0,
+		'Time::HiRes' => 0,
 	},
 	dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
 	clean               => { FILES => 'Qless-*' },

@@ -6,6 +6,7 @@ Qless::Queues
 use strict; use warnings;
 use Qless::Queue;
 use JSON::XS qw(decode_json);
+use Time::HiRes qw(time);
 
 sub new {
 	my $class = shift;

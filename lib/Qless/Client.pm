@@ -6,6 +6,7 @@ Qless::Client
 use strict; use warnings;
 use JSON::XS qw(decode_json);
 use Sys::Hostname qw(hostname);
+use Time::HiRes qw(time);
 use Qless::Lua;
 use Qless::Config;
 use Qless::Workers;
@@ -46,11 +47,13 @@ sub _mk_private_lua_method {
 	my $script = Qless::Lua->new($name, $self->{'redis'});
 
 	no strict qw(refs);
+	no warnings;
 	my $subname = __PACKAGE__.'::_'.$name;
 	*{$subname} = sub {
 		my $self = shift;
 		$script->(@_);
 	};
+	use warnings;
 	use strict qw(refs);
 	
 }
@@ -120,7 +123,7 @@ sub jobs    { $#_ == 1 ? $_[0]->{'jobs'}->item($_[1])    : $_[0]->{'jobs'} }
 
 =head2 C<worker_name>
 =cut
-sub worker_name { $_[0]->{'worker_name'} }
+sub worker_name { $#_ == 1 ? $_[0]->{'worker_name'} = $_[1] : $_[0]->{'worker_name'} }
 
 =head2 C<redis>
 =cut

@@ -7,6 +7,7 @@ use strict; use warnings;
 use JSON::XS qw(decode_json encode_json);
 use Qless::Jobs;
 use Qless::Job;
+use Time::HiRes qw(time);
 
 =head1 METHODS
 

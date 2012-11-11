@@ -1,5 +1,6 @@
 \B\.hg\b
 ^\.hgignore$
+^\.stuff/
 
 ^MANIFEST\.
 ^Makefile$

@@ -1,5 +1,7 @@
 package Qless::BaseJob;
 use strict; use warnings;
+use Qless::Utils qw(fix_empty_array);
+use Time::HiRes qw(time);
 
 sub new {
 	my $class = shift;
@@ -18,15 +20,21 @@ sub new {
 
 	$self->{'klass'}      = $args->{'klass'};
 	$self->{'queue_name'} = $args->{'queue'};
-	$self->{'tags'}       = $args->{'tags'} || [];
+	$self->{'tags'}       = fix_empty_array($args->{'tags'});
 
 	$self;
 }
 
+
 sub priority {
-	my ($self, $value) = @_;
-	$self->{'client'}->_priority([], $self->{'jid'}, $value);
-	$self->{'priority'} = $value;
+	my $self = shift;
+
+	if ($#_ == 0) {
+		$self->{'client'}->_priority([], $self->{'jid'}, $_[0]);
+		$self->{'priority'} = $_[0];
+	}
+
+	return $self->{'priority'};
 }
 
 sub queue {

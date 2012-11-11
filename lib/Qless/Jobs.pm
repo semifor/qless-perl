@@ -4,6 +4,7 @@ package Qless::Jobs;
 Qless::jobs
 =cut
 use strict; use warnings;
+use Time::HiRes qw(time);
 sub new {
 	my $class = shift;
 	my ($name, $client) = @_;

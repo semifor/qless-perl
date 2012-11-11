@@ -9,6 +9,7 @@ lib/Qless/Lua.pm
 lib/Qless/Queue.pm
 lib/Qless/Queues.pm
 lib/Qless/RecurringJob.pm
+lib/Qless/Utils.pm
 lib/Qless/Worker.pm
 lib/Qless/Workers.pm
 Makefile.PL
@@ -34,6 +35,6 @@ share/stats.lua
 share/tag.lua
 share/track.lua
 share/workers.lua
-t/client.t
-t/jobs.t
-t/lua.t
+t/lib/TestQless.pm
+t/lib/TestQless/General.pm
+t/runtests.t

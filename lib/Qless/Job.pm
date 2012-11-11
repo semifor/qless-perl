@@ -5,8 +5,10 @@ Qless::Job
 =cut
 use strict; use warnings;
 use base 'Qless::BaseJob';
+use Qless::Utils qw(fix_empty_array);
 use JSON::XS qw(decode_json encode_json);
 use Class::Load qw(try_load_class);
+use Time::HiRes qw(time);
 
 sub new {
 	my $class = shift;
@@ -19,8 +21,8 @@ sub new {
 	foreach my $key (qw(state tracked failure history dependents dependencies)) {
 		$self->{$key} = $args->{ $key };
 	}
-	$self->{'dependents'} ||= [];
-	$self->{'dependencies'} ||= [];
+	$self->{'dependents'}   = fix_empty_array($self->{'dependents'});
+	$self->{'dependencies'} = fix_empty_array($self->{'dependencies'});
 
 	$self->{'expires_at'}       = $args->{'expires'};
 	$self->{'original_retries'} = $args->{'retries'};
