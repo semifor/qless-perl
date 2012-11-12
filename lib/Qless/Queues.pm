@@ -2,6 +2,7 @@ package Qless::Queues;
 =head1 NAME
 
 Qless::Queues
+
 =cut
 use strict; use warnings;
 use Qless::Queue;

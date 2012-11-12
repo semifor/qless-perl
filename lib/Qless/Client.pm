@@ -2,6 +2,7 @@ package Qless::Client;
 =head1 NAME
 
 Qless::Client
+
 =cut
 use strict; use warnings;
 use JSON::XS qw(decode_json);

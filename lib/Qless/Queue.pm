@@ -2,6 +2,7 @@ package Qless::Queue;
 =head1 NAME
 
 Qless:Queue
+
 =cut
 use strict; use warnings;
 use JSON::XS qw(decode_json encode_json);

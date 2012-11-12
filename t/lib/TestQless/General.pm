@@ -176,7 +176,7 @@ sub test_scheduled : Tests(5) {
 # when a job is put with a delay, that its state is 
 # 'scheduled', when we peek it or pop it and its state is
 # now considered valid, then it should be 'waiting'
-sub test_scheduled_peek_pop_state : Tests {
+sub test_scheduled_peek_pop_state : Tests(3) {
 	my $self = shift;
 	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'scheduled_state'}, delay => 10);
 	is $self->{'client'}->jobs($jid)->state, 'scheduled';
@@ -187,5 +187,44 @@ sub test_scheduled_peek_pop_state : Tests {
 	is $self->{'client'}->jobs($jid)->state, 'waiting';
 }
 
+# In this test, we want to put a job, pop it, and then 
+# verify that its history has been updated accordingly.
+#   1) Put a job on the queue
+#   2) Get job, check history
+#   3) Pop job, check history
+#   4) Complete job, check history
+sub test_put_pop_complete_history : Tests(3) {
+	my $self = shift;
+	is $self->{'q'}->length, 0, 'Starting with empty queue';
+
+	my $put_time = time;
+	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'put_history'});
+	my $job = $self->{'client'}->jobs($jid);
+	is $job->history->[0]->{'put'}, $put_time;
+
+	my $pop_time = time;
+	$job = $self->{'q'}->pop;
+	$job = $self->{'client'}->jobs($jid);
+	is $job->history->[0]->{'popped'}, $pop_time;
+}
+
+# In this test, we want to verify that if we put a job
+# in one queue, and then move it, that it is in fact
+# no longer in the first queue.
+#   1) Put a job in one queue
+#   2) Put the same job in another queue
+#   3) Make sure that it's no longer in the first queue
+sub test_move_queue : Tests(5) {
+	my $self = shift;
+
+	is $self->{'q'}->length, 0, 'Starting with empty queue';
+	is $self->{'other'}->length, 0, 'Starting with empty other queue';
+	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'move_queue'});
+	is $self->{'q'}->length, 1;
+	my $job = $self->{'client'}->jobs($jid);
+	$job->move('other');
+	is $self->{'q'}->length, 0;
+	is $self->{'other'}->length, 1;
+}
 
 1;

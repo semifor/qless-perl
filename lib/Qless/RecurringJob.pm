@@ -2,6 +2,7 @@ package Qless::RecurringJob;
 =head1 NAME
 
 Qless::RecurringJob
+
 =cut
 use strict; use warnings;
 use base 'Qless::BaseJob';

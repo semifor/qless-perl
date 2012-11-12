@@ -2,6 +2,7 @@ package Qless::Lua;
 =head1 NAME
 
 Qless::Lua
+
 =cut
 use strict; use warnings;
 use File::ShareDir qw();

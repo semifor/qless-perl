@@ -1,7 +1,8 @@
 package Qless::Jobs;
 =head1 NAME
 
-Qless::jobs
+Qless::Jobs
+
 =cut
 use strict; use warnings;
 use Time::HiRes qw(time);

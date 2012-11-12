@@ -2,6 +2,7 @@ package Qless::ClientJobs;
 =head1 NAME
 
 Qless::ClientJobs
+
 =cut
 use strict; use warnings;
 use JSON::XS qw(decode_json encode_json);
