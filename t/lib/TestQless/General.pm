@@ -172,5 +172,20 @@ sub test_scheduled : Tests(5) {
 
 }
 
+# Despite the wordy test name, we want to make sure that
+# when a job is put with a delay, that its state is 
+# 'scheduled', when we peek it or pop it and its state is
+# now considered valid, then it should be 'waiting'
+sub test_scheduled_peek_pop_state : Tests {
+	my $self = shift;
+	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'scheduled_state'}, delay => 10);
+	is $self->{'client'}->jobs($jid)->state, 'scheduled';
+
+	sleep(11);
+
+	is $self->{'q'}->peek->state, 'waiting';
+	is $self->{'client'}->jobs($jid)->state, 'waiting';
+}
+
 
 1;
