@@ -4,6 +4,7 @@ package Qless::Worker;
 Qless::Worker
 
 =cut
+
 use strict; use warnings;
 
 sub new {

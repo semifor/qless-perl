@@ -4,6 +4,7 @@ package Qless::Jobs;
 Qless::Jobs
 
 =cut
+
 use strict; use warnings;
 use Time::HiRes qw(time);
 sub new {

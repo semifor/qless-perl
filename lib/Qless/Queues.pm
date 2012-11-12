@@ -4,6 +4,7 @@ package Qless::Queues;
 Qless::Queues
 
 =cut
+
 use strict; use warnings;
 use Qless::Queue;
 use JSON::XS qw(decode_json);

@@ -4,6 +4,7 @@ package Qless::ClientJobs;
 Qless::ClientJobs
 
 =cut
+
 use strict; use warnings;
 use JSON::XS qw(decode_json encode_json);
 use Qless::Job;

@@ -4,6 +4,7 @@ package Qless::Workers;
 Qless::Workers
 
 =cut
+
 use strict; use warnings;
 use JSON::XS qw(decode_json);
 use Time::HiRes qw(time);

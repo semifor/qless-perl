@@ -4,6 +4,7 @@ package Qless::Job;
 Qless::Job
 
 =cut
+
 use strict; use warnings;
 use base 'Qless::BaseJob';
 use Qless::Utils qw(fix_empty_array);

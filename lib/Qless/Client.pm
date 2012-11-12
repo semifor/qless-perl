@@ -4,6 +4,7 @@ package Qless::Client;
 Qless::Client
 
 =cut
+
 use strict; use warnings;
 use JSON::XS qw(decode_json);
 use Sys::Hostname qw(hostname);
@@ -56,7 +57,6 @@ sub _mk_private_lua_method {
 	};
 	use warnings;
 	use strict qw(refs);
-	
 }
 
 =head2 C<track($jid)>
@@ -107,7 +107,9 @@ sub events { }
 sub config { $_[0]->{'config'} };
 
 =head2 C<workers([$name])>
+
 =cut
+
 sub workers { $#_ == 1 ? $_[0]->{'workers'}->item($_[1]) : $_[0]->{'workers'} }
 
 =head2 C<queues([$name])>
@@ -123,11 +125,15 @@ If jid is specified this method returns a job object corresponding to that jid, 
 sub jobs    { $#_ == 1 ? $_[0]->{'jobs'}->item($_[1])    : $_[0]->{'jobs'} }
 
 =head2 C<worker_name>
+
 =cut
+
 sub worker_name { $#_ == 1 ? $_[0]->{'worker_name'} = $_[1] : $_[0]->{'worker_name'} }
 
 =head2 C<redis>
+
 =cut
+
 sub redis       { $_[0]->{'redis'} }
 
 1;

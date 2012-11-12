@@ -4,6 +4,7 @@ package Qless::Queue;
 Qless:Queue
 
 =cut
+
 use strict; use warnings;
 use JSON::XS qw(decode_json encode_json);
 use Qless::Jobs;
@@ -39,14 +40,18 @@ sub worker_name  { $_[0]->{'worker_name'} }
 
 
 =head2 C<jobs>
+
 =cut
+
 sub jobs {
 	my ($self) = @_;
 	Qless::Jobs->new($self->{'name'}, $self->{'client'});
 }
 
 =head2 C<counts>
+
 =cut
+
 sub counts {
 	my ($self) = @_;
 	return decode_json($self->{'client'}->_queues([], time, $self->{'name'}));
@@ -130,14 +135,18 @@ sub peek {
 }
 
 =head2 C<stats>
+
 =cut
+
 sub stats {
 	my ($self, $date) = @_;
 	return decode_json($self->{'client'}->_stats([], $self->{'name'}, $date || time));
 }
 
 =head2 C<length>
+
 =cut
+
 sub length {
 	my ($self) = @_;
 

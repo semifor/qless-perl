@@ -4,6 +4,7 @@ package Qless::Config;
 Qless::Config
 
 =cut
+
 use strict; use warnings;
 use JSON::XS qw(decode_json);
 
