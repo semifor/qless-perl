@@ -1,7 +1,7 @@
 package Qless;
 use strict; use warnings;
 use Qless::Client;
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 
 
