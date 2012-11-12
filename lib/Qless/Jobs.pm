@@ -6,7 +6,7 @@ Qless::Jobs
 =cut
 
 use strict; use warnings;
-use Time::HiRes qw(time);
+use Time::HiRes qw();
 sub new {
 	my $class = shift;
 	my ($name, $client) = @_;
@@ -22,27 +22,27 @@ sub new {
 
 sub running {
 	my ($self, $offset, $count) = @_;
-	return $self->{'client'}->_jobs([], 'running', time, $self->{'name'}, $offset||0, $count||25);
+	return $self->{'client'}->_jobs([], 'running', Time::HiRes::time, $self->{'name'}, $offset||0, $count||25);
 }
 
 sub stalled {
 	my ($self, $offset, $count) = @_;
-	return $self->{'client'}->_jobs([], 'stalled', time, $self->{'name'}, $offset||0, $count||25);
+	return $self->{'client'}->_jobs([], 'stalled', Time::HiRes::time, $self->{'name'}, $offset||0, $count||25);
 }
 
 sub scheduled {
 	my ($self, $offset, $count) = @_;
-	return $self->{'client'}->_jobs([], 'scheduled', time, $self->{'name'}, $offset||0, $count||25);
+	return $self->{'client'}->_jobs([], 'scheduled', Time::HiRes::time, $self->{'name'}, $offset||0, $count||25);
 }
 
 sub depends {
 	my ($self, $offset, $count) = @_;
-	return $self->{'client'}->_jobs([], 'depends', time, $self->{'name'}, $offset||0, $count||25);
+	return $self->{'client'}->_jobs([], 'depends', Time::HiRes::time, $self->{'name'}, $offset||0, $count||25);
 }
 
 sub recurring {
 	my ($self, $offset, $count) = @_;
-	return $self->{'client'}->_jobs([], 'recurring', time, $self->{'name'}, $offset||0, $count||25);
+	return $self->{'client'}->_jobs([], 'recurring', Time::HiRes::time, $self->{'name'}, $offset||0, $count||25);
 }
 
 1;

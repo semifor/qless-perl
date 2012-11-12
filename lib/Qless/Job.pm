@@ -10,7 +10,7 @@ use base 'Qless::BaseJob';
 use Qless::Utils qw(fix_empty_array);
 use JSON::XS qw(decode_json encode_json);
 use Class::Load qw(try_load_class);
-use Time::HiRes qw(time);
+use Time::HiRes qw();
 
 sub new {
 	my $class = shift;
@@ -47,7 +47,7 @@ sub worker_name      { $_[0]->{'worker_name'} }
 
 sub ttl {
 	my ($self) = @_;
-	return $self->{'expires_at'} - time;
+	return $self->{'expires_at'} - Time::HiRes::time;
 }
 
 sub process {
@@ -91,7 +91,7 @@ sub move {
 		$self->jid,
 		$self->klass,
 		encode_json($self->data),
-		time,
+		Time::HiRes::time,
 		$delay||0,
 		'depends', encode_json($depends||[])
 	);
@@ -102,12 +102,12 @@ sub complete {
 	
 	if ($next) {
 		return $self->client->_complete([], $self->jid, $self->client->worker_name, $self->queue_name,
-			time, encode_json($self->data), 'next', $next, 'delay', $delay||0, 'depends', encode_json($depends||[])
+			Time::HiRes::time, encode_json($self->data), 'next', $next, 'delay', $delay||0, 'depends', encode_json($depends||[])
 		);
 	}
 	else {
 		return $self->client->_complete([], $self->jid, $self->client->worker_name, $self->queue_name,
-			time, encode_json($self->data)
+			Time::HiRes::time, encode_json($self->data)
 		);
 	}
 }
@@ -116,7 +116,7 @@ sub heartbeat {
 	my ($self) = @_;
 
 	return $self->{'expires_at'} = $self->client->_heartbeat([],
-		$self->jid, $self->client->worker_name, time, encode_json($self->data)
+		$self->jid, $self->client->worker_name, Time::HiRes::time, encode_json($self->data)
 	) || 0;
 }
 
@@ -124,25 +124,25 @@ sub heartbeat {
 sub fail {
 	my ($self, $group, $message) = @_;
 
-	return $self->client->_fail([], $self->jid, $self->client->worker_name, $group, $message, time, encode_json($self->data));
+	return $self->client->_fail([], $self->jid, $self->client->worker_name, $group, $message, Time::HiRes::time, encode_json($self->data));
 }
 
 sub track {
 	my ($self) = @_;
 
-	return $self->client->_track([], 'track', $self->jid, time);
+	return $self->client->_track([], 'track', $self->jid, Time::HiRes::time);
 }
 
 sub untrack {
 	my ($self) = @_;
 
-	return $self->client->_track([], 'untrack', $self->jid, time);
+	return $self->client->_track([], 'untrack', $self->jid, Time::HiRes::time);
 }
 
 sub retry {
 	my ($self, $delay) = @_;
 
-	return $self->client->_retry([], $self->jid, $self->queue_name, $self->worker_name, time, $delay||0);
+	return $self->client->_retry([], $self->jid, $self->queue_name, $self->worker_name, Time::HiRes::time, $delay||0);
 }
 
 sub depend {

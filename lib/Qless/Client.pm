@@ -8,7 +8,7 @@ Qless::Client
 use strict; use warnings;
 use JSON::XS qw(decode_json);
 use Sys::Hostname qw(hostname);
-use Time::HiRes qw(time);
+use Time::HiRes qw();
 use Qless::Lua;
 use Qless::Config;
 use Qless::Workers;
@@ -65,7 +65,7 @@ Begin tracking the job
 =cut
 sub track {
 	my ($self, $jid) = @_;
-	return $self->_track([], 'track', $jid, time);
+	return $self->_track([], 'track', $jid, Time::HiRes::time);
 }
 
 =head2 C<untrack($jid)>
@@ -74,7 +74,7 @@ Stop tracking the job
 =cut
 sub untrack {
 	my ($self, $jid) = @_;
-	return $self->_track([], 'untrack', $jid, time);
+	return $self->_track([], 'untrack', $jid, Time::HiRes::time);
 }
 
 =head2 C<tags([$offset, $count])>

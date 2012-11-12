@@ -9,7 +9,7 @@ use strict; use warnings;
 use JSON::XS qw(decode_json encode_json);
 use Qless::Jobs;
 use Qless::Job;
-use Time::HiRes qw(time);
+use Time::HiRes qw();
 
 =head1 METHODS
 
@@ -31,7 +31,7 @@ sub new {
 
 sub generate_jid {
 	my ($self, $data) = @_;
-	return $self->{'worker_name'}.'-'.time.'-'.sprintf('%06d', int(rand(999999)));
+	return $self->{'worker_name'}.'-'.CORE::time.'-'.sprintf('%06d', int(rand(999999)));
 }
 
 sub client       { $_[0]->{'client'} }
@@ -54,7 +54,7 @@ sub jobs {
 
 sub counts {
 	my ($self) = @_;
-	return decode_json($self->{'client'}->_queues([], time, $self->{'name'}));
+	return decode_json($self->{'client'}->_queues([], Time::HiRes::time, $self->{'name'}));
 }
 
 =head2 C<heartbeat>
@@ -81,7 +81,7 @@ sub put {
 		$args{'jid'} || $self->generate_jid($data),
 		$klass,
 		encode_json($data),
-		time,
+		Time::HiRes::time,
 		$args{'delay'} || 0,
 		'priority', $args{'priority'} || 0,
 		'tags', encode_json($args{'tags'} || []),
@@ -99,7 +99,7 @@ sub recur {
 		$args{'jid'} || $self->generate_jid($data),
 		$klass,
 		encode_json($data),
-		time,
+		Time::HiRes::time,
 		'interval', $interval, $args{'offset'} || 0,
 		'priority', $args{'priority'} || 0,
 		'tags', encode_json($args{'tags'} || []),
@@ -113,7 +113,7 @@ sub recur {
 sub pop {
 	my ($self, $count) = @_;
 	my $jobs = [ map { Qless::Job->new($self->{'client'}, decode_json($_)) }
-		@{ $self->{'client'}->_pop([$self->{'name'}], $self->{'worker_name'}, $count||1, time) } ];
+		@{ $self->{'client'}->_pop([$self->{'name'}], $self->{'worker_name'}, $count||1, Time::HiRes::time) } ];
 	if (!defined $count) {
 		return scalar @{ $jobs } ?  $jobs->[0] : undef;
 	}
@@ -126,7 +126,7 @@ sub pop {
 sub peek {
 	my ($self, $count) = @_;
 	my $jobs = [ map { Qless::Job->new($self->{'client'}, decode_json($_)) }
-		@{ $self->{'client'}->_peek([$self->{'name'}], $count||1, time) } ];
+		@{ $self->{'client'}->_peek([$self->{'name'}], $count||1, Time::HiRes::time) } ];
 	if (!defined $count) {
 		return scalar @{ $jobs } ?  $jobs->[0] : undef;
 	}
@@ -140,7 +140,7 @@ sub peek {
 
 sub stats {
 	my ($self, $date) = @_;
-	return decode_json($self->{'client'}->_stats([], $self->{'name'}, $date || time));
+	return decode_json($self->{'client'}->_stats([], $self->{'name'}, $date || Time::HiRes::time));
 }
 
 =head2 C<length>

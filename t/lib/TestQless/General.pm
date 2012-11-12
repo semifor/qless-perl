@@ -159,17 +159,21 @@ sub test_scheduled : Tests(5) {
 	my $self = shift;
 
 	is $self->{'q'}->length, 0, 'Starting with empty queue';
+
+	$self->time_freeze;
+
 	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'scheduled'}, delay => 10);
 
 	is $self->{'q'}->pop, undef;
 	is $self->{'q'}->length, 1;
 
-	sleep(11);
+	$self->time_advance(11);
 
 	my $job = $self->{'q'}->pop;
 	ok $job;
 	is $job->jid, $jid;
 
+	$self->time_unfreeze;
 }
 
 # Despite the wordy test name, we want to make sure that
@@ -178,13 +182,18 @@ sub test_scheduled : Tests(5) {
 # now considered valid, then it should be 'waiting'
 sub test_scheduled_peek_pop_state : Tests(3) {
 	my $self = shift;
+
+	$self->time_freeze;
+
 	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'scheduled_state'}, delay => 10);
 	is $self->{'client'}->jobs($jid)->state, 'scheduled';
 
-	sleep(11);
+	$self->time_advance(11);
 
 	is $self->{'q'}->peek->state, 'waiting';
 	is $self->{'client'}->jobs($jid)->state, 'waiting';
+
+	$self->time_unfreeze;
 }
 
 # In this test, we want to put a job, pop it, and then 
@@ -225,6 +234,111 @@ sub test_move_queue : Tests(5) {
 	$job->move('other');
 	is $self->{'q'}->length, 0;
 	is $self->{'other'}->length, 1;
+}
+
+# In this test, we want to verify that if we put a job
+# in one queue, it's popped, and then we move it before
+# it's turned in, then subsequent attempts to renew the
+# lock or complete the work will fail
+#   1) Put job in one queue
+#   2) Pop that job
+#   3) Put job in another queue
+#   4) Verify that heartbeats fail
+sub test_move_queue_popped : Tests(5) {
+	my $self = shift;
+
+	is $self->{'q'}->length, 0, 'Starting with empty queue';
+	is $self->{'other'}->length, 0, 'Starting with empty other queue';
+	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'move_queue_popped'});
+	is $self->{'q'}->length, 1;
+	$job = $self->{'q'}->pop;
+	ok $job;
+	$job->move('other');
+	is $job->heartbeat, 0;
+}
+
+# In this test, we want to verify that if we move a job
+# from one queue to another, that it doesn't destroy any
+# of the other data that was associated with it. Like 
+# the priority, tags, etc.
+#   1) Put a job in a queue
+#   2) Get the data about that job before moving it
+#   3) Move it 
+#   4) Get the data about the job after
+#   5) Compare 2 and 4  
+sub test_move_non_destructive : Tests(8) {
+	my $self = shift;
+	is $self->{'q'}->length, 0, 'Starting with empty queue';
+	is $self->{'other'}->length, 0, 'Starting with empty other queue';
+	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'move_non_destructive'}, tags => ['foo', 'bar'], priority => 5);
+
+	my $before = $self->{'client'}->jobs($jid);
+	$before->move('other');
+	my $after = $self->{'client'}->jobs($jid);
+
+	is_deeply $before->tags, ['foo', 'bar'];
+	is $before->priority, 5;
+	is_deeply $before->tags, $after->tags;
+	is_deeply $before->data, $after->data;
+	is_deeply $before->priority, $after->priority;
+	is scalar @{ $after->history }, 2;
+}
+
+
+# In this test, we want to make sure that we can still 
+# keep our lock on an object if we renew it in time.
+# The gist of this test is:
+#   1) A gets an item, with positive heartbeat
+#   2) B tries to get an item, fails
+#   3) A renews its heartbeat successfully
+sub test_heartbeat : Tests(7) {
+	my $self = shift;
+	is $self->{'a'}->length, 0, 'Starting with empty queue';
+	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'heartbeat'});
+	my $ajob = $self->{'a'}->pop;
+	ok $ajob;
+	my $bjob = $self->{'a'}->pop;
+	ok !$bjob;
+	ok $ajob->heartbeat =~ /^\d+(\.\d+)?$/;
+	ok $ajob->ttl > 0;
+	$self->{'q'}->heartbeat(-60);
+	ok $ajob->heartbeat =~ /^\d+(\.\d+)?$/;
+	ok $ajob->ttl <= 0;
+}
+
+# In this test, we want to make sure that when we heartbeat a 
+# job, its expiration in the queue is also updated. So, supposing
+# that I heartbeat a job 5 times, then its expiration as far as
+# the lock itself is concerned is also updated
+sub test_heartbeat_expiration : Tests(21) {
+	my $self = shift;
+
+	$self->{'client'}->config->set('crawl-heartbeat', 7200);
+	my $jid = $self->{'q'}->put('Qless::Job', {});
+
+	my $job = $self->{'a'}->pop;
+	ok !$self->{'b'}->pop;
+	$self->time_freeze;
+	for (1..10) {
+		$self->time_advance(3600);
+		ok $job->heartbeat;
+		ok !$self->{'b'}->pop;
+	}
+	$self->time_unfreeze;
+}
+
+
+# In this test, we want to make sure that we cannot heartbeat
+# a job that has not yet been popped
+#   1) Put a job
+#   2) DO NOT pop that job
+#   3) Ensure we cannot heartbeat that job
+sub test_heartbeat_state : Tests(2) {
+	my $self = shift;
+	is $self->{'q'}->length, 0, 'Starting with empty queue';
+	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'heartbeat_state'});
+	my $job = $self->{'client'}->jobs($jid);
+	ok !$job->heartbeat;
 }
 
 1;

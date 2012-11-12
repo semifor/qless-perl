@@ -1,7 +1,7 @@
 package Qless::BaseJob;
 use strict; use warnings;
 use Qless::Utils qw(fix_empty_array);
-use Time::HiRes qw(time);
+use Time::HiRes qw();
 
 sub new {
 	my $class = shift;
@@ -56,12 +56,12 @@ sub cancel {
 
 sub tag {
 	my ($self, @tags) = @_;
-	$self->{'client'}->_tag([], 'add', $self->{'jid'}, time, @tags);
+	$self->{'client'}->_tag([], 'add', $self->{'jid'}, Time::HiRes::time, @tags);
 }
 
 sub untag {
 	my ($self, @tags) = @_;
-	$self->{'client'}->_tag([], 'remove', $self->{'jid'}, time, @tags);
+	$self->{'client'}->_tag([], 'remove', $self->{'jid'}, Time::HiRes::time, @tags);
 }
 
 1;

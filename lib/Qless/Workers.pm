@@ -7,7 +7,7 @@ Qless::Workers
 
 use strict; use warnings;
 use JSON::XS qw(decode_json);
-use Time::HiRes qw(time);
+use Time::HiRes qw();
 
 sub new {
 	my $class = shift;
@@ -23,12 +23,12 @@ sub new {
 
 sub counts {
 	my ($self) = @_;
-	return decode_json($self->{'client'}->_workers([], time));
+	return decode_json($self->{'client'}->_workers([], Time::HiRes::time));
 }
 
 sub item {
 	my ($self, $name) = @_;
-	my $rv = decode_json($self->{'client'}->_workers([], time, $name));
+	my $rv = decode_json($self->{'client'}->_workers([], Time::HiRes::time, $name));
 	$rv->{'jobs'}    ||= [];
 	$rv->{'stalled'} ||= [];
 
