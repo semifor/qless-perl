@@ -102,6 +102,7 @@ sub test_put_pop_attributes : Tests(12) {
 	is $job->klass, 'Foo::Job';
 }
 
+
 # In this test, we're going to add several jobs and make
 # sure that we get them in an order based on priority
 #   1) Insert 10 jobs into the queue with successively more priority
@@ -176,6 +177,7 @@ sub test_scheduled : Tests(5) {
 	$self->time_unfreeze;
 }
 
+
 # Despite the wordy test name, we want to make sure that
 # when a job is put with a delay, that its state is 
 # 'scheduled', when we peek it or pop it and its state is
@@ -195,6 +197,7 @@ sub test_scheduled_peek_pop_state : Tests(3) {
 
 	$self->time_unfreeze;
 }
+
 
 # In this test, we want to put a job, pop it, and then 
 # verify that its history has been updated accordingly.
@@ -217,6 +220,7 @@ sub test_put_pop_complete_history : Tests(3) {
 	is $job->history->[0]->{'popped'}, $pop_time;
 }
 
+
 # In this test, we want to verify that if we put a job
 # in one queue, and then move it, that it is in fact
 # no longer in the first queue.
@@ -235,6 +239,7 @@ sub test_move_queue : Tests(5) {
 	is $self->{'q'}->length, 0;
 	is $self->{'other'}->length, 1;
 }
+
 
 # In this test, we want to verify that if we put a job
 # in one queue, it's popped, and then we move it before
@@ -256,6 +261,7 @@ sub test_move_queue_popped : Tests(5) {
 	$job->move('other');
 	is $job->heartbeat, 0;
 }
+
 
 # In this test, we want to verify that if we move a job
 # from one queue to another, that it doesn't destroy any
@@ -306,6 +312,7 @@ sub test_heartbeat : Tests(7) {
 	ok $ajob->ttl <= 0;
 }
 
+
 # In this test, we want to make sure that when we heartbeat a 
 # job, its expiration in the queue is also updated. So, supposing
 # that I heartbeat a job 5 times, then its expiration as far as
@@ -340,5 +347,100 @@ sub test_heartbeat_state : Tests(2) {
 	my $job = $self->{'client'}->jobs($jid);
 	ok !$job->heartbeat;
 }
+
+
+# Make sure that we can safely pop from an empty queue
+#   1) Make sure the queue is empty
+#   2) When we pop from it, we don't get anything back
+#   3) When we peek, we don't get anything
+sub test_peek_pop_empty : Tests(3) {
+	my $self = shift;
+	is $self->{'q'}->length, 0, 'Starting with empty queue';
+	ok !$self->{'q'}->pop;
+	ok !$self->{'q'}->peek;
+}
+
+
+# In this test, we want to put a job and peek that job, we 
+# get all the attributes back that we expect
+#   1) put a job
+#   2) peek said job, check existence of attributes
+sub test_peek_attributes : Tests(11) {
+	my $self = shift;
+
+	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'peek_attributes'});
+	my $job = $self->{'q'}->peek;
+
+	is_deeply $job->data, {'test'=>'peek_attributes'};
+	is $job->worker_name, '';
+	is $job->state, 'waiting';
+	is $job->queue_name, 'testing';
+	is $job->queue->name, 'testing';
+	is $job->retries_left, 5;
+	is $job->original_retries, 5;
+	is $job->jid, $jid;
+	is $job->klass, 'Qless::Job';
+	is_deeply $job->tags, [];
+
+	$jid = $self->{'q'}->put('Foo::Job', {'test'=>'peek_attributes'});
+	$job = $self->{'q'}->pop;
+	$job = $self->{'q'}->peek;
+	is $job->klass, 'Foo::Job';
+}
+
+
+# In this test, we're going to have two queues that point
+# to the same queue, but we're going to have them represent
+# different workers. The gist of it is this
+#   1) A gets an item, with negative heartbeat
+#   2) B gets the same item,
+#   3) A tries to renew lock on item, should fail
+#   4) B tries to renew lock on item, should succeed
+#   5) Both clean up
+sub test_locks : Tests(6) {
+	my $self = shift;
+	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'locks'});
+	# Reset our heartbeat for both A and B
+	$self->{'client'}->config->set('heartbeat', -10);
+
+	# Make sure a gets a job
+	my $ajob = $self->{'a'}->pop;
+	ok $ajob;
+
+	# Now, make sure that b gets that same job
+	my $bjob = $self->{'b'}->pop;
+	ok $bjob;
+	is $ajob->jid, $bjob->jid;
+	ok $bjob->heartbeat =~ /^\d+(\.\d+)?$/;
+	ok $bjob->heartbeat + 11 >= time;
+	ok !$ajob->heartbeat;
+}
+
+
+# When a worker loses a lock on a job, that job should be removed
+# from the list of jobs owned by that worker
+sub test_locks_workers : Tests(5) {
+	my $self = shift;
+	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'locks'}, retries => 1);
+	$self->{'client'}->config->set('heartbeat', -10);
+	my $ajob = $self->{'a'}->pop;
+
+	# Get the workers
+	my $workers = +{ map { $_->{'name'} => $_ } @{ $self->{'client'}->workers->counts } };
+	is $workers->{ $self->{'a'}->worker_name }->{'stalled'}, 1;
+
+	# Should have one more retry, so we should be good
+	my $bjob = $self->{'b'}->pop;
+	$workers = +{ map { $_->{'name'} => $_ } @{ $self->{'client'}->workers->counts } };
+	is $workers->{ $self->{'a'}->worker_name }->{'stalled'}, 0;
+	is $workers->{ $self->{'b'}->worker_name }->{'stalled'}, 1;
+
+	# Now it's automatically failed. Shouldn't appear in either worker
+	$bjob = $self->{'b'}->pop;
+	$workers = +{ map { $_->{'name'} => $_ } @{ $self->{'client'}->workers->counts } };
+	is $workers->{ $self->{'a'}->worker_name }->{'stalled'}, 0;
+	is $workers->{ $self->{'b'}->worker_name }->{'stalled'}, 0;
+}
+
 
 1;
