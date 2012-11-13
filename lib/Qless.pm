@@ -296,10 +296,14 @@ qless-perl: L<https://bitbucket.org/nuclon/qless-perl|https://bitbucket.org/nucl
 
 qless-core: L<https://github.com/seomoz/qless-core|https://github.com/seomoz/qless-core>
 
-=head1 AUTHOR
+=head1 AUTHORS
 
 qless, qless-py and qless-core - SEOmoz
 
 qless-perl - Anatoliy Lapitskiy <nuclon@cpan.org>
+
+=head1 COPYRIGHT & LICENSE
+
+This program is free software, you can redistribute it and/or modify it under the terms of the Artistic License version 2.0.
 
 =cut

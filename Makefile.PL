@@ -2,7 +2,10 @@ use inc::Module::Install;
 use Module::Install::Share;
 
 name 'Qless';
-all_from 'lib/Qless.pm';
+author 'Anatoliy Lapitskiy <nuclon@cpan.org>';
+license 'artistic2';
+perl_version '5.006';
+version_from 'lib/Qless.pm';
 
 test_requires 'Test::More';
 test_requires 'Test::Class';
