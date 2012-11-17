@@ -443,4 +443,183 @@ sub test_locks_workers : Tests(5) {
 }
 
 
+# In this test, we want to make sure that we can corretly
+# cancel a job
+#   1) Put a job
+#   2) Cancel a job
+#   3) Ensure that it's no longer in the queue
+#   4) Ensure that we can't get data for it
+sub test_cancel : Tests(4) {
+	my $self = shift;
+	is $self->{'q'}->length, 0, 'Starting with empty queue';
+	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'cancel'});
+	my $job = $self->{'client'}->jobs($jid);
+
+	is $self->{'q'}->length, 1;
+	$job->cancel;
+	is $self->{'q'}->length, 0;
+	is $self->{'client'}->jobs($jid), undef;
+}
+
+
+
+# In this test, we want to make sure that when we cancel
+# a job, that heartbeats fail, as do completion attempts
+#   1) Put a job
+#   2) Pop that job
+#   3) Cancel that job
+#   4) Ensure that it's no longer in the queue
+#   5) Heartbeats fail, Complete fails
+#   6) Ensure that we can't get data for it
+sub test_cancel_heartbeat : Tests(5) {
+	my $self = shift;
+	is $self->{'q'}->length, 0, 'Starting with empty queue';
+	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'cancel_heartbeat'});
+	my $job = $self->{'q'}->pop;
+	$job->cancel;
+	is $self->{'q'}->length, 0;
+	ok !$job->heartbeat;
+	ok !$job->complete;
+	is $self->{'client'}->jobs($jid), undef;
+}
+
+
+# In this test, we want to make sure that if we fail a job
+# and then we cancel it, then we want to make sure that when
+# we ask for what jobs failed, we shouldn't see this one
+#   1) Put a job
+#   2) Fail that job
+#   3) Make sure we see failure stats
+#   4) Cancel that job
+#   5) Make sure that we don't see failure stats
+sub test_cancel_fail : Tests(2) {
+	my $self = shift;
+	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'cancel_fail'});
+	my $job = $self->{'q'}->pop;
+	$job->fail('foo', 'some message');
+	is_deeply $self->{'client'}->jobs->failed, { 'foo' => 1 };
+	$job->cancel;
+	is_deeply $self->{'client'}->jobs->failed, {};
+}
+
+
+# In this test, we want to make sure that a job that has been
+# completed and not simultaneously enqueued are correctly 
+# marked as completed. It should have a complete history, and
+# have the correct state, no worker, and no queue
+#   1) Put an item in a queue
+#   2) Pop said item from the queue
+#   3) Complete that job
+#   4) Get the data on that job, check state
+sub test_complete : Tests(10) {
+	my $self = shift;
+	is $self->{'q'}->length, 0, 'Starting with empty queue';
+	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'complete'});
+	my $job = $self->{'q'}->pop;
+	ok $job;
+	is $job->complete, 'complete';
+	$job = $self->{'client'}->jobs($jid);
+	is $job->history->[0]->{'done'}, time;
+	is $job->state, 'complete';
+	is $job->worker_name, '';
+	is $job->queue_name, '';
+	is $self->{'q'}->length, 0;
+	is_deeply $self->{'client'}->jobs->complete, [$jid];
+
+	# Now, if we move job back into a queue, we shouldn't see any
+	# completed jobs anymore
+	$job->move('testing');
+	is_deeply $self->{'client'}->jobs->complete, [];
+}
+
+
+
+# In this test, we want to make sure that a job that has been
+# completed and simultaneously enqueued has the correct markings.
+# It shouldn't have a worker, its history should be updated,
+# and the next-named queue should have that item.
+#   1) Put an item in a queue
+#   2) Pop said item from the queue
+#   3) Complete that job, re-enqueueing it
+#   4) Get the data on that job, check state
+#   5) Ensure that there is a work item in that queue
+sub test_complete_advance : Tests(11) {
+	my $self = shift;
+	is $self->{'q'}->length, 0, 'Starting with empty queue';
+	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'complete_advance'});
+	my $job = $self->{'q'}->pop;
+	ok $job;
+	is $job->complete('testing'), 'waiting';
+	$job = $self->{'client'}->jobs($jid);
+	is scalar @{ $job->history }, 2;
+	is $job->history->[0]->{'done'}, time;
+	is $job->history->[1]->{'put'}, time;
+	is $job->state, 'waiting';
+	is $job->worker_name, '';
+	is $job->queue_name, 'testing';
+	is $job->queue->name, 'testing';
+	is $self->{'q'}->length, 1;
+}
+
+
+# In this test, we want to make sure that a job that has been
+# handed out to a second worker can both be completed by the
+# second worker, and not completed by the first.
+#   1) Hand a job out to one worker, expire
+#   2) Hand a job out to a second worker
+#   3) First worker tries to complete it, should fail
+#   4) Second worker tries to complete it, should succeed
+sub test_complete_fail : Tests(9) {
+	my $self = shift;
+	is $self->{'q'}->length, 0, 'Starting with empty queue';
+	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'complete_fail'});
+	$self->{'client'}->config->set('heartbeat', -10);
+	my $ajob = $self->{'a'}->pop;
+	ok $ajob;
+	my $bjob = $self->{'b'}->pop;
+	ok $bjob;
+
+	is $ajob->complete, undef;
+	is $bjob->complete, 'complete';
+
+	my $job = $self->{'client'}->jobs($jid);
+	is $job->state, 'complete';
+	is $job->worker_name, '';
+	is $job->queue_name, '';
+	is $self->{'q'}->length, 0;
+}
+
+
+# In this test, we want to make sure that if we try to complete
+# a job that's in anything but the 'running' state.
+#   1) Put an item in a queue
+#   2) DO NOT pop that item from the queue
+#   3) Attempt to complete the job, ensure it fails
+sub test_complete_state : Tests(2) {
+	my $self = shift;
+	is $self->{'q'}->length, 0, 'Starting with empty queue';
+	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'complete_state'});
+	my $job = $self->{'client'}->jobs($jid);
+	is $job->complete('testing'), undef;
+}
+
+
+
+# In this test, we want to make sure that if we complete a job and
+# advance it, that the new queue always shows up in the 'queues'
+# endpoint.
+#   1) Put an item in a queue
+#   2) Complete it, advancing it to a different queue
+#   3) Ensure it appears in 'queues'
+sub test_complete_queues : Tests(3) {
+	my $self = shift;
+	is $self->{'q'}->length, 0, 'Starting with empty queue';
+	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'complete_queues'});
+
+	is scalar (grep { $_->{'name'} eq 'other' } @{ $self->{'client'}->queues->counts }), 0;
+	$self->{'q'}->pop->complete('other');
+	is scalar (grep { $_->{'name'} eq 'other' } @{ $self->{'client'}->queues->counts }), 1;
+}
 1;
+
+

@@ -84,7 +84,7 @@ sub item {
 
 	my $results = $self->{'client'}->_get([], $jid);
 	if (!$results) {
-		$results = $self->{'client'}->_recur([], $jid);
+		$results = $self->{'client'}->_recur([], 'get', $jid);
 		return undef if !$results;
 
 		return Qless::RecurringJob->new($self->{'client'}, decode_json($results));
