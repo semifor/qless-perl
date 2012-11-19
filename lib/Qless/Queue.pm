@@ -118,7 +118,7 @@ sub pop {
 		return scalar @{ $jobs } ?  $jobs->[0] : undef;
 	}
 
-	return $jobs;
+	return @{ $jobs };
 }
 
 =head2 C<peek>
@@ -131,7 +131,7 @@ sub peek {
 		return scalar @{ $jobs } ?  $jobs->[0] : undef;
 	}
 
-	return $jobs;
+	return @{ $jobs };
 }
 
 =head2 C<stats>

@@ -8,6 +8,7 @@ Qless::Workers
 use strict; use warnings;
 use JSON::XS qw(decode_json);
 use Time::HiRes qw();
+use Qless::Utils qw(fix_empty_array);
 
 sub new {
 	my $class = shift;
@@ -29,8 +30,8 @@ sub counts {
 sub item {
 	my ($self, $name) = @_;
 	my $rv = decode_json($self->{'client'}->_workers([], Time::HiRes::time, $name));
-	$rv->{'jobs'}    ||= [];
-	$rv->{'stalled'} ||= [];
+	$rv->{'jobs'}    = fix_empty_array($rv->{'jobs'});
+	$rv->{'stalled'} = fix_empty_array($rv->{'stalled'});
 
 	$rv;
 }

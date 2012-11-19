@@ -2,6 +2,7 @@ package TestQless::General;
 use base qw(TestQless);
 use Test::More;
 use Data::Dumper;
+use List::Util;
 
 sub test_config : Tests(5) {
 	my $self = shift;
@@ -63,12 +64,12 @@ sub test_push_peek_pop_many : Tests(6) {
 	is $self->{'q'}->length, scalar @jids, 'Inserting should increase the size of the queue';
 
 	# Alright, they're in the queue. Let's take a peek
-	is scalar @{ $self->{'q'}->peek(7) }, 7;
-	is scalar @{ $self->{'q'}->peek(10) }, 10;
+	is scalar $self->{'q'}->peek(7), 7;
+	is scalar $self->{'q'}->peek(10), 10;
 
 	# Now let's pop them all off one by one
-	is scalar @{ $self->{'q'}->pop(7) }, 7;
-	is scalar @{ $self->{'q'}->pop(10) }, 3;
+	is scalar $self->{'q'}->pop(7), 7;
+	is scalar $self->{'q'}->pop(10), 3;
 }
 
 
@@ -620,6 +621,145 @@ sub test_complete_queues : Tests(3) {
 	$self->{'q'}->pop->complete('other');
 	is scalar (grep { $_->{'name'} eq 'other' } @{ $self->{'client'}->queues->counts }), 1;
 }
+
+
+
+# In this test, we want to make sure that we honor our job
+# expiration, in the sense that when jobs are completed, we 
+# then delete all the jobs that should be expired according
+# to our deletion criteria
+#   1) First, set jobs-history-count to 10
+#   2) Then, insert 20 jobs
+#   3) Pop each of these jobs
+#   4) Complete each of these jobs
+#   5) Ensure that we have data about 10 jobs
+sub test_job_count_expiration : Tests(2) {
+	my $self = shift;
+	$self->{'client'}->config->set('jobs-history-count', 10);
+	my @jids = map { $self->{'q'}->put('Qless::Job', { 'test' => 'job_count_expiration', count => $_ }) } 0..19;
+	foreach (@jids) {
+		$self->{'q'}->pop->complete;
+	}
+
+	is $self->{'redis'}->zcard('ql:completed'), 10;
+	is scalar ($self->{'redis'}->keys('ql:j:*')), 10;
+}
+
+
+# In this test, we're going to make sure that statistics are
+# correctly collected about how long items wait in a queue
+#   1) Ensure there are no wait stats currently
+#   2) Add a bunch of jobs to a queue
+#   3) Pop a bunch of jobs from that queue, faking out the times
+#   4) Ensure that there are now correct wait stats
+sub test_stats_waiting : Tests(29) {
+	my $self = shift;
+	my $stats = $self->{'q'}->stats;
+	is $stats->{'wait'}->{'count'}, 0;
+	is $stats->{'run'}->{'count'}, 0;
+
+	$self->time_freeze;
+	my @jids = map { $self->{'q'}->put('Qless::Job', { 'test' => 'stats_waiting', count => $_ }) } 0..19;
+	is scalar @jids, 20;
+	foreach (@jids) {
+		ok $self->{'q'}->pop;
+		$self->time_advance(1);
+	}
+	$self->time_unfreeze;
+
+	# Now, make sure that we see stats for the waiting
+	$stats = $self->{'q'}->stats;
+	is $stats->{'wait'}->{'count'}, 20;
+	is $stats->{'wait'}->{'mean'}, 9.5;
+	# This is our expected standard deviation
+	ok $stats->{'wait'}->{'std'} - 5.916079783099 < 1e-8;
+	# Now make sure that our histogram looks like what we think it
+	# should
+	is_deeply [ @{ $stats->{'wait'}->{'histogram'} }[0..19] ], [ (1)x20 ];
+	is List::Util::sum(@{ $stats->{'run'}->{'histogram'} }), $stats->{'run'}->{'count'};
+	is List::Util::sum(@{ $stats->{'wait'}->{'histogram'} }), $stats->{'wait'}->{'count'};
+}
+
+
+# In this test, we want to make sure that statistics are
+# correctly collected about how long items take to actually 
+# get processed.
+#   1) Ensure there are no run stats currently
+#   2) Add a bunch of jobs to a queue
+#   3) Pop those jobs
+#   4) Complete those jobs, faking out the time
+#   5) Ensure that there are now correct run stats
+sub test_stats_complete : Tests(9) {
+	my $self = shift;
+	my $stats = $self->{'q'}->stats;
+	is $stats->{'wait'}->{'count'}, 0;
+	is $stats->{'run'}->{'count'}, 0;
+
+	$self->time_freeze;
+	my @jids = map { $self->{'q'}->put('Qless::Job', { 'test' => 'stats_waiting', count => $_ }) } 0..19;
+	my @jobs = $self->{'q'}->pop(20);
+	is scalar @jobs, 20;
+	foreach my $job (@jobs) {
+		$job->complete;
+		$self->time_advance(1);
+	}
+	$self->time_unfreeze;
+
+	$stats = $self->{'q'}->stats;
+	is $stats->{'run'}->{'count'}, 20;
+	is $stats->{'run'}->{'mean'}, 9.5;
+	ok $stats->{'run'}->{'std'} - 5.916079783099 < 1e-8;
+	is_deeply [ @{ $stats->{'run'}->{'histogram'} }[0..19] ], [ (1)x20 ];
+	is List::Util::sum(@{ $stats->{'run'}->{'histogram'} }), $stats->{'run'}->{'count'};
+	is List::Util::sum(@{ $stats->{'wait'}->{'histogram'} }), $stats->{'wait'}->{'count'};
+}
+
+
+# In this test, we want to make sure that the queues function
+# can correctly identify the numbers associated with that queue
+#   1) Make sure we get nothing for no queues
+#   2) Put delayed item, check
+#   3) Put item, check
+#   4) Put, pop item, check
+#   5) Put, pop, lost item, check
+sub test_queues : Tests {
+	my $self = shift;
+	is $self->{'q'}->length, 0, 'Starting with empty queue';
+	is_deeply $self->{'client'}->queues->counts, {};
+	# Now, let's actually add an item to a queue, but scheduled
+	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'queues'}, delay => 10);
+	my $expected = {
+		'name'      => 'testing',
+		'stalled'   => 0,
+		'waiting'   => 0,
+		'running'   => 0,
+		'scheduled' => 1,
+		'depends'   =>  0,
+		'recurring' => 0
+	};
+	is_deeply $self->{'client'}->queues->counts, [$expected];
+	is_deeply $self->{'client'}->queues('testing')->counts, $expected;
+
+	$self->{'q'}->put('Qless::Job', {'test'=>'queues'});
+	$expected->{'waiting'} += 1;
+	is_deeply $self->{'client'}->queues->counts, [$expected];
+	is_deeply $self->{'client'}->queues('testing')->counts, $expected;
+
+	my $job = $self->{'q'}->pop;
+	$expected->{'waiting'} -= 1;
+	$expected->{'running'} += 1;
+	is_deeply $self->{'client'}->queues->counts, [$expected];
+	is_deeply $self->{'client'}->queues('testing')->counts, $expected;
+
+	# Now we'll have to mess up our heartbeat to make this work
+	$self->{'q'}->put('Qless::Job', {'test'=>'queues'});
+	$self->{'client'}->config->set('heartbeat', -10);
+	$job = $self->{'q'}->pop;
+	$expected->{'stalled'} += 1;
+	is_deeply $self->{'client'}->queues->counts, [$expected];
+	is_deeply $self->{'client'}->queues('testing')->counts, $expected;
+}
+
 1;
 
 
