@@ -8,6 +8,7 @@ Qless::Worker
 use strict; use warnings;
 use Redis;
 use Qless::Client;
+use POSIX qw(setsid :sys_wait_h);
 
 sub new {
 	my $class = shift;
@@ -37,7 +38,8 @@ sub new {
 	$self->{'queues'} = \@queues;
 
 	$self->{'interval'} = $opt{'interval'};
-	$self->{'workers_count'} = $opt{'workers'};
+	$self->{'workers_max'} = $opt{'workers'};
+	$self->{'workers'} = {};
 
 	$self;
 }
@@ -45,34 +47,72 @@ sub new {
 sub redis       { $_[0]->{'redis'} }
 sub client      { $_[0]->{'client'} }
 
+#TBD
 sub resume {
 	my $self = shift;
 	my $jids = $self->client->workers( $self->client->worker_name )->{'jobs'};
 }
 
+sub _reaper {
+	my $self = shift;
+	while (( my $pid = waitpid(-1, WNOHANG)) > 0) {
+		$self->debug("reaping worker PID $pid\n");
+		delete $self->{'workers'}->{ $pid };
+	}
+	$SIG{'CHLD'} = sub { $self->_reaper };
+}
+
 sub run {
 	my $self = shift;
+
+    $SIG{'CHLD'} = sub { $self->_reaper };
 
 	my $working = 1;
 	my $queue_index = 0;
 	my $queue_count = scalar @{ $self->{'queues'} };
 	$self->debug('Starting loop');
 	while ($working) {
+
+		if (scalar keys %{ $self->{'workers'} } >= $self->{'workers_max'}) {
+			sleep(1);
+			next;
+		}
+
 		my $queue = $self->{'queues'}->[$queue_index];
 		$self->debug('Queuing '.$queue->name);
 		if (my $job = $queue->pop) {
-			$self->debug('Got job class '.$job->klass);
-			$job->process;
-		}
 
-		$self->debug('Sleeping');
-		sleep($self->{'interval'} || 1+int(rand(10)));
+			$self->debug('Got job class '.$job->klass);
+			my $pid = fork();
+			if (!defined $pid) {
+				die "Could not fork: $!";
+			}
+
+			if (!$pid) {
+				$job->process;
+				exit;
+			}
+
+			$self->debug('Starting worker, PID: '.$pid);
+			$self->{'workers'}->{ $pid } = 1;
+		}
+		else {
+			$self->debug('Sleeping');
+			sleep($self->{'interval'} || 1+int(rand(10)));
+		}
 
 		$queue_index++;
 		if ($queue_index >= $queue_count) {
 			$queue_index = 0;
 		}
 	}
+
+	while(scalar keys %{ $self->{'workers'} }) {
+		$self->debug('waiting for worker PIDS: '.join(', ', keys %{ $self->{'workers'} }));
+		sleep(1);
+	}
+
+	$self->debug('done');
 }
 
 
