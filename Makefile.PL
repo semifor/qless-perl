@@ -15,7 +15,9 @@ requires 'JSON::XS';
 requires 'File::ShareDir';
 requires 'Class::Load';
 requires 'Time::HiRes';
+requires 'Daemon::Generic';
 
 install_share;
+install_script 'bin/qless-worker';
 
 WriteAll;

@@ -38,7 +38,7 @@ sub new {
 	$self->{'queues'} = \@queues;
 
 	$self->{'interval'} = $opt{'interval'};
-	$self->{'workers_max'} = $opt{'workers'};
+	$self->{'workers_max'} = $opt{'workers'} || 5;
 	$self->{'workers'} = {};
 
 	$self;

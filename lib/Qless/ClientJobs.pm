@@ -9,6 +9,7 @@ use strict; use warnings;
 use JSON::XS qw(decode_json encode_json);
 use Qless::Job;
 use Qless::RecurringJob;
+use Qless::Utils qw(fix_empty_array);
 
 =head1 METHODS
 
@@ -42,8 +43,8 @@ Return an array of job objects that are being tracked
 sub tracked {
 	my ($self) = @_;
 	my $results = decode_json($self->{'client'}->_track());
+	$results->{'jobs'} = fix_empty_array($results->{'jobs'});
 	$results->{'jobs'} = [ map { Qless::Job->new($self, $_) } @{ $results->{'jobs'} } ];
-
 	return $results;
 }
 
@@ -63,15 +64,16 @@ If a type is provided, returns paginated job objects affected by that kind of fa
 =cut
 sub failed {
 	my ($self, $group, $offset, $count) = @_;
+
+	my $results;
 	if (!$group) {
-		return decode_json($self->{'client'}->_failed());
+		$results = decode_json($self->{'client'}->_failed());
+		return $results;
 	}
 
-	my $results = decode_json($self->{'client'}->_failed([], $group, $offset||0, $count||25));
-
-	if ($results->{'jobs'} && ref $results->{'jobs'} eq 'ARRAY') {
-		$results->{'jobs'} = [ map { Qless::Job->new($self->{'client'}, $_) } @{ $results->{'jobs'} } ];
-	}
+	$results = decode_json($self->{'client'}->_failed([], $group, $offset||0, $count||25));
+	$results->{'jobs'} = fix_empty_array($results->{'jobs'});
+	$results->{'jobs'} = [ map { Qless::Job->new($self->{'client'}, $_) } @{ $results->{'jobs'} } ];
 	return $results;
 }
 

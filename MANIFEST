@@ -1,3 +1,15 @@
+bin/qless-worker
+bin/qless-worker.pl
+inc/Module/Install.pm
+inc/Module/Install/Base.pm
+inc/Module/Install/Can.pm
+inc/Module/Install/Fetch.pm
+inc/Module/Install/Makefile.pm
+inc/Module/Install/Metadata.pm
+inc/Module/Install/Scripts.pm
+inc/Module/Install/Share.pm
+inc/Module/Install/Win32.pm
+inc/Module/Install/WriteAll.pm
 lib/Qless.pm
 lib/Qless/BaseJob.pm
 lib/Qless/Client.pm
@@ -14,7 +26,10 @@ lib/Qless/Worker.pm
 lib/Qless/Workers.pm
 Makefile.PL
 MANIFEST			This list of files
+META.yml
+MYMETA.json
 MYMETA.yml
+Qless-0.02.tar
 share/cancel.lua
 share/complete.lua
 share/config.lua
@@ -37,4 +52,5 @@ share/track.lua
 share/workers.lua
 t/lib/TestQless.pm
 t/lib/TestQless/General.pm
+t/pod.t
 t/runtests.t

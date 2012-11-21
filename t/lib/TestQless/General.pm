@@ -722,7 +722,7 @@ sub test_stats_complete : Tests(9) {
 #   3) Put item, check
 #   4) Put, pop item, check
 #   5) Put, pop, lost item, check
-sub test_queues : Tests {
+sub test_queues : Tests(10) {
 	my $self = shift;
 	is $self->{'q'}->length, 0, 'Starting with empty queue';
 	is_deeply $self->{'client'}->queues->counts, {};
@@ -760,6 +760,70 @@ sub test_queues : Tests {
 	is_deeply $self->{'client'}->queues('testing')->counts, $expected;
 }
 
+
+
+# In this test, we want to make sure that tracking works as expected.
+#   1) Check tracked jobs, expect none
+#   2) Put, Track a job, check
+#   3) Untrack job, check
+#   4) Track job, cancel, check
+sub test_track : Tests(4) {
+	my $self = shift;
+
+	is_deeply $self->{'client'}->jobs->tracked, { expired => {}, jobs => [] };
+	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'track'});
+	my $job = $self->{'client'}->jobs($jid);
+	$job->track;
+	
+	is scalar @{ $self->{'client'}->jobs->tracked->{'jobs'} }, 1;
+	$job->untrack;
+	is scalar @{ $self->{'client'}->jobs->tracked->{'jobs'} }, 0;
+
+	$job->track;
+	$job->cancel;
+	is scalar @{ $self->{'client'}->jobs->tracked->{'expired'} }, 1;
+}
+
+
+# When peeked, popped, failed, etc., qless should know when a 
+# job is tracked or not
+# => 1) Put a job, track it
+# => 2) Peek, ensure tracked
+# => 3) Pop, ensure tracked
+# => 4) Fail, check failed, ensure tracked
+sub test_track_tracked : Tests(3) {
+	my $self = shift;
+	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'track'});
+	my $job = $self->{'client'}->jobs($jid);
+	$job->track;
+	is $self->{'q'}->peek->tracked, 1;
+
+	$job = $self->{'q'}->pop;
+	is $job->tracked, 1;
+
+	$job->fail('foo', 'bar');
+	is $self->{'client'}->jobs->failed('foo')->{'jobs'}->[0]->tracked, 1;
+}
+
+
+# When peeked, popped, failed, etc., qless should know when a 
+# job is not tracked
+# => 1) Put a job
+# => 2) Peek, ensure not tracked
+# => 3) Pop, ensure not tracked
+# => 4) Fail, check failed, ensure not tracked
+sub test_track_untracked : Tests(3) {
+	my $self = shift;
+	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'track'});
+	my $job = $self->{'client'}->jobs($jid);
+	is $self->{'q'}->peek->tracked, 0;
+
+	$job = $self->{'q'}->pop;
+	is $job->tracked, 0;
+
+	$job->fail('foo', 'bar');
+	is $self->{'client'}->jobs->failed('foo')->{'jobs'}->[0]->tracked, 0;
+}
 1;
 
 
