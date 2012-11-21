@@ -1,5 +1,4 @@
 bin/qless-worker
-bin/qless-worker.pl
 inc/Module/Install.pm
 inc/Module/Install/Base.pm
 inc/Module/Install/Can.pm
@@ -29,7 +28,6 @@ MANIFEST			This list of files
 META.yml
 MYMETA.json
 MYMETA.yml
-Qless-0.02.tar
 share/cancel.lua
 share/complete.lua
 share/config.lua
