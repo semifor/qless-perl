@@ -12,5 +12,6 @@ BEGIN {
 };
 
 use TestQless::General;
+use TestQless::Recurring;
 
 Test::Class->runtests;

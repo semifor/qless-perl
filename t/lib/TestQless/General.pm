@@ -2,7 +2,6 @@ package TestQless::General;
 use base qw(TestQless);
 use Test::More;
 use Test::Deep;
-use Data::Dumper;
 use List::Util;
 
 sub test_config : Tests(5) {
@@ -1006,7 +1005,6 @@ sub test_workers : Tests(3) {
 }
 
 
-
 # In this test, we want to verify that when a job is canceled,
 # that it is removed from the list of jobs associated with a worker
 #   1) Put a job
@@ -1039,8 +1037,6 @@ sub test_workers_cancel : Tests(4) {
 		stalled => [],
 	};
 }
-
-
 
 
 # In this test, we want to verify that 'workers' and 'worker'
@@ -1119,7 +1115,6 @@ sub test_workers_fail : Tests(4) {
 }
 
 
-
 # In this test, we want to make sure that when we complete a job,
 # it's reflected correctly in 'workers' and 'worker'
 #   1) Put a job
@@ -1184,7 +1179,6 @@ sub test_workers_reput : Tests(4) {
 }
 
 
-
 # Make sure that we can get a list of jids for a queue that
 # are running, stalled and scheduled
 #   1) Put a job, pop it, check 'running'
@@ -1214,6 +1208,5 @@ sub test_running_stalled_scheduled_depends : Tests(6) {
 	@jids = map { $self->{'q'}->put('Qless::Job', { 'test' => 'rssd' }, depends => \@jids) } 0..19;
 	cmp_bag [ @{ $self->{'q'}->jobs->depends(0, 10) }, @{ $self->{'q'}->jobs->depends(10, 10) } ], \@jids;
 }
+
 1;
-
-

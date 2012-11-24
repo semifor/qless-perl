@@ -93,14 +93,14 @@ sub put {
 =head2 C<recur>
 =cut
 sub recur {
-	my ($self, $klass, $data, $interval, %args) = @_;
+	my ($self, $klass, $data, %args) = @_;
 
 	return $self->{'client'}->_recur([], 'on', $self->{'name'},
 		$args{'jid'} || $self->generate_jid($data),
 		$klass,
 		encode_json($data),
 		Time::HiRes::time,
-		'interval', $interval, $args{'offset'} || 0,
+		'interval', $args{'interval'}, $args{'offset'} || 0,
 		'priority', $args{'priority'} || 0,
 		'tags', encode_json($args{'tags'} || []),
 		'retries', $args{'retries'} || 5,
