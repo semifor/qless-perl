@@ -1,6 +1,7 @@
 package TestQless::General;
 use base qw(TestQless);
 use Test::More;
+use Test::Deep;
 use Data::Dumper;
 use List::Util;
 
@@ -978,6 +979,241 @@ sub test_stats_failed_original_day : Tests(6) {
 	is $yesterday->{'failures'}, 1;
 }
 
+
+# In this test, we want to verify that when we add a job, we 
+# then know about that worker, and that it correctly identifies
+# the jobs it has.
+#   1) Put a job
+#   2) Ensure empty 'workers'
+#   3) Pop that job
+#   4) Ensure unempty 'workers'
+#   5) Ensure unempty 'worker'
+sub test_workers : Tests(3) {
+	my $self = shift;
+	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'workers'});
+	is_deeply $self->{'client'}->workers->counts, {};
+	my $job = $self->{'q'}->pop;
+	is_deeply $self->{'client'}->workers->counts, [{
+			name => $self->{'q'}->worker_name,
+			jobs => 1,
+			stalled => 0,
+	}];
+	# Now get specific worker information
+	is_deeply $self->{'client'}->workers($self->{'q'}->worker_name), {
+		jobs => [$jid],
+		stalled => [],
+	};
+}
+
+
+
+# In this test, we want to verify that when a job is canceled,
+# that it is removed from the list of jobs associated with a worker
+#   1) Put a job
+#   2) Pop that job
+#   3) Ensure 'workers' and 'worker' know about it
+#   4) Cancel job
+#   5) Ensure 'workers' and 'worker' reflect that
+sub test_workers_cancel : Tests(4) {
+	my $self = shift;
+	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'workers_cancel'});
+	my $job = $self->{'q'}->pop;
+	is_deeply $self->{'client'}->workers->counts, [{
+			name => $self->{'q'}->worker_name,
+			jobs => 1,
+			stalled => 0,
+	}];
+	is_deeply $self->{'client'}->workers($self->{'q'}->worker_name), {
+		jobs => [$jid],
+		stalled => [],
+	};
+	# Now cancel the job
+	$job->cancel;
+	is_deeply $self->{'client'}->workers->counts, [{
+			name => $self->{'q'}->worker_name,
+			jobs => 0,
+			stalled => 0,
+	}];
+	is_deeply $self->{'client'}->workers($self->{'q'}->worker_name), {
+		jobs => [],
+		stalled => [],
+	};
+}
+
+
+
+
+# In this test, we want to verify that 'workers' and 'worker'
+# correctly identify that a job is stalled, and that when that
+# job is taken from the lost lock, that it's no longer listed
+# as stalled under the original worker. Also, that workers are
+# listed in order of recency of contact
+#   1) Put a job
+#   2) Pop a job, with negative heartbeat
+#   3) Ensure 'workers' and 'worker' show it as stalled
+#   4) Pop the job with a different worker
+#   5) Ensure 'workers' and 'worker' reflect that
+sub test_workers_lost_lock : Tests(4) {
+	my $self = shift;
+	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'workers_lost_lock'});
+	$self->{'client'}->config->set('heartbeat', -10);
+	my $job = $self->{'q'}->pop;
+	is_deeply $self->{'client'}->workers->counts, [{
+			name => $self->{'q'}->worker_name,
+			jobs => 0,
+			stalled => 1,
+	}];
+	is_deeply $self->{'client'}->workers($self->{'q'}->worker_name), {
+		jobs => [],
+		stalled => [$jid],
+	};
+	# Now, let's pop it with a different worker
+	$self->{'client'}->config->del('heartbeat');
+	$job = $self->{'a'}->pop;
+	is_deeply $self->{'client'}->workers->counts, [{
+			name => $self->{'a'}->worker_name,
+			jobs => 1,
+			stalled => 0,
+	}, {
+			name => $self->{'q'}->worker_name,
+			jobs => 0,
+			stalled => 0,
+	}];
+	is_deeply $self->{'client'}->workers($self->{'q'}->worker_name), {
+		jobs => [],
+		stalled => [],
+	};
+}
+
+
+# In this test, we want to make sure that when we fail a job,
+# its reflected correctly in 'workers' and 'worker'
+#   1) Put a job
+#   2) Pop job, check 'workers', 'worker'
+#   3) Fail that job
+#   4) Check 'workers', 'worker'
+sub test_workers_fail : Tests(4) {
+	my $self = shift;
+	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'workers_fail'});
+	my $job = $self->{'q'}->pop;
+	is_deeply $self->{'client'}->workers->counts, [{
+			name => $self->{'q'}->worker_name,
+			jobs => 1,
+			stalled => 0,
+	}];
+	is_deeply $self->{'client'}->workers($self->{'q'}->worker_name), {
+		jobs => [$jid],
+		stalled => [],
+	};
+	# Now, let's fail it
+	$job->fail('foo', 'bar');
+	is_deeply $self->{'client'}->workers->counts, [{
+			name => $self->{'q'}->worker_name,
+			jobs => 0,
+			stalled => 0,
+	}];
+	is_deeply $self->{'client'}->workers($self->{'q'}->worker_name), {
+		jobs => [],
+		stalled => [],
+	};
+}
+
+
+
+# In this test, we want to make sure that when we complete a job,
+# it's reflected correctly in 'workers' and 'worker'
+#   1) Put a job
+#   2) Pop a job, check 'workers', 'worker'
+#   3) Complete job, check 'workers', 'worker'
+sub test_workers_complete : Tests(4) {
+	my $self = shift;
+	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'workers_complete'});
+	my $job = $self->{'q'}->pop;
+	is_deeply $self->{'client'}->workers->counts, [{
+			name => $self->{'q'}->worker_name,
+			jobs => 1,
+			stalled => 0,
+	}];
+	is_deeply $self->{'client'}->workers($self->{'q'}->worker_name), {
+		jobs => [$jid],
+		stalled => [],
+	};
+	# Now complete it
+	$job->complete;
+	is_deeply $self->{'client'}->workers->counts, [{
+			name => $self->{'q'}->worker_name,
+			jobs => 0,
+			stalled => 0,
+	}];
+	is_deeply $self->{'client'}->workers($self->{'q'}->worker_name), {
+		jobs => [],
+		stalled => [],
+	};
+}
+
+
+# Make sure that if we move a job from one queue to another, that 
+# the job is no longer listed as one of the jobs that the worker
+# has.
+#   1) Put a job
+#   2) Pop job, check 'workers', 'worker'
+#   3) Move job, check 'workers', 'worker'
+sub test_workers_reput : Tests(4) {
+	my $self = shift;
+	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'workers_complete'});
+	my $job = $self->{'q'}->pop;
+	is_deeply $self->{'client'}->workers->counts, [{
+			name => $self->{'q'}->worker_name,
+			jobs => 1,
+			stalled => 0,
+	}];
+	is_deeply $self->{'client'}->workers($self->{'q'}->worker_name), {
+		jobs => [$jid],
+		stalled => [],
+	};
+	$job->move('other');
+	is_deeply $self->{'client'}->workers->counts, [{
+			name => $self->{'q'}->worker_name,
+			jobs => 0,
+			stalled => 0,
+	}];
+	is_deeply $self->{'client'}->workers($self->{'q'}->worker_name), {
+		jobs => [],
+		stalled => [],
+	};
+}
+
+
+
+# Make sure that we can get a list of jids for a queue that
+# are running, stalled and scheduled
+#   1) Put a job, pop it, check 'running'
+#   2) Put a job scheduled, check 'scheduled'
+#   3) Put a job with negative heartbeat, pop, check stalled
+#   4) Put a job dependent on another and check 'depends'
+sub test_running_stalled_scheduled_depends : Tests(6) {
+	my $self = shift;
+	is $self->{'q'}->length, 0;
+	# Now, we need to check pagination
+	my @jids = map { $self->{'q'}->put('Qless::Job', { 'test' => 'rssd' }) } 0..19;
+	$self->{'client'}->config->set('heartbeat', -60);
+	my @jobs = $self->{'q'}->pop(20);
+	cmp_bag [ @{ $self->{'q'}->jobs->stalled(0, 10) }, @{ $self->{'q'}->jobs->stalled(10, 10) } ], \@jids;
+
+	$self->{'client'}->config->set('heartbeat', 60);
+	@jobs = $self->{'q'}->pop(20);
+	cmp_bag [ @{ $self->{'q'}->jobs->running(0, 10) }, @{ $self->{'q'}->jobs->running(10, 10) } ], \@jids;
+
+	$_->complete foreach @jobs;
+	@jids = reverse map { $_->jid } @jobs;
+	is_deeply [ @{ $self->{'client'}->jobs->complete(0, 10) }, @{ $self->{'client'}->jobs->complete(10, 10) } ], \@jids;
+
+	@jids = map { $self->{'q'}->put('Qless::Job', { 'test' => 'rssd' }, delay => 60) } 0..19;
+	cmp_bag [ @{ $self->{'q'}->jobs->scheduled(0, 10) }, @{ $self->{'q'}->jobs->scheduled(10, 10) } ], \@jids;
+
+	@jids = map { $self->{'q'}->put('Qless::Job', { 'test' => 'rssd' }, depends => \@jids) } 0..19;
+	cmp_bag [ @{ $self->{'q'}->jobs->depends(0, 10) }, @{ $self->{'q'}->jobs->depends(10, 10) } ], \@jids;
+}
 1;
 
 

@@ -9,6 +9,7 @@ version_from 'lib/Qless.pm';
 
 test_requires 'Test::More';
 test_requires 'Test::Class';
+test_requires 'Test::Deep';
 
 requires 'Redis';
 requires 'JSON::XS';
