@@ -761,7 +761,6 @@ sub test_queues : Tests(10) {
 }
 
 
-
 # In this test, we want to make sure that tracking works as expected.
 #   1) Check tracked jobs, expect none
 #   2) Put, Track a job, check
@@ -824,6 +823,161 @@ sub test_track_untracked : Tests(3) {
 	$job->fail('foo', 'bar');
 	is $self->{'client'}->jobs->failed('foo')->{'jobs'}->[0]->tracked, 0;
 }
+
+
+# In this test, we want to make sure that jobs are given a
+# certain number of retries before automatically being considered
+# failed.
+#   1) Put a job with a few retries
+#   2) Verify there are no failures
+#   3) Lose the heartbeat as many times
+#   4) Verify there are failures
+#   5) Verify the queue is empty
+sub test_retries : Tests(9) {
+	my $self = shift;
+	
+	is_deeply $self->{'client'}->jobs->failed, {};
+	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'retries'}, retries => 2);
+	# Easier to lose the heartbeat lock
+	$self->{'client'}->config->set('heartbeat', -10);
+	ok $self->{'q'}->pop;
+	is_deeply $self->{'client'}->jobs->failed, {};
+	ok $self->{'q'}->pop;
+	is_deeply $self->{'client'}->jobs->failed, {};
+	ok $self->{'q'}->pop;
+	is_deeply $self->{'client'}->jobs->failed, {};
+
+	# This one should do it
+	is $self->{'q'}->pop, undef;
+	is_deeply $self->{'client'}->jobs->failed, {'failed-retries-testing' => 1};
+}
+
+
+# In this test, we want to make sure that jobs have their number
+# of remaining retries reset when they are put on a new queue
+#   1) Put an item with 2 retries
+#   2) Lose the heartbeat once
+#   3) Get the job, make sure it has 1 remaining
+#   4) Complete the job
+#   5) Get job, make sure it has 2 remaining
+sub test_retries_complete : Tests(3) {
+	my $self = shift;
+	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'retries_complete'}, retries => 2);
+	$self->{'client'}->config->set('heartbeat', -10);
+	my $job = $self->{'q'}->pop;
+	ok $job;
+	$job = $self->{'q'}->pop;
+	is $job->retries_left, 1;
+	$job->complete;
+
+	$job = $self->{'client'}->jobs($jid);
+	is $job->retries_left, 2;
+}
+
+
+# In this test, we want to make sure that jobs have their number
+# of remaining retries reset when they are put on a new queue
+#   1) Put an item with 2 retries
+#   2) Lose the heartbeat once
+#   3) Get the job, make sure it has 1 remaining
+#   4) Re-put the job in the queue with job.move
+#   5) Get job, make sure it has 2 remaining
+sub test_retries_put : Tests(3) {
+	my $self = shift;
+	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'retries_put'}, retries => 2);
+	$self->{'client'}->config->set('heartbeat', -10);
+	my $job = $self->{'q'}->pop;
+	ok $job;
+	$job = $self->{'q'}->pop;
+	is $job->retries_left, 1;
+	$job->move('testing');
+	$job = $self->{'client'}->jobs($jid);
+	is $job->retries_left, 2;
+}
+
+
+
+# In this test, we want to make sure that statistics are
+# correctly collected about how many items are currently failed
+#   1) Put an item
+#   2) Ensure we don't have any failed items in the stats for that queue
+#   3) Fail that item
+#   4) Ensure that failures and failed both increment
+#   5) Put that item back
+#   6) Ensure failed decremented, failures untouched
+sub test_stats_failed : Tests(6) {
+	my $self = shift;
+	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'stats_failed'});
+	my $stats = $self->{'q'}->stats;
+	
+	is $stats->{'failed'}, 0;
+	is $stats->{'failures'}, 0;
+	my $job = $self->{'q'}->pop;
+	$job->fail('foo', 'bar');
+
+	$stats = $self->{'q'}->stats;
+	is $stats->{'failed'}, 1;
+	is $stats->{'failures'}, 1;
+
+	$job->move('testing');
+	$stats = $self->{'q'}->stats;
+	is $stats->{'failed'}, 0;
+	is $stats->{'failures'}, 1;
+}
+
+
+# In this test, we want to make sure that retries are getting
+# captured correctly in statistics
+#   1) Put a job
+#   2) Pop job, lose lock
+#   3) Ensure no retries in stats
+#   4) Pop job,
+#   5) Ensure one retry in stats
+sub test_stats_retries : Tests(2) {
+	my $self = shift;
+	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'stats_retries'});
+	$self->{'client'}->config->set('heartbeat', -10);
+	my $job = $self->{'q'}->pop;
+	is $self->{'q'}->stats->{'retries'}, 0;
+	$job = $self->{'q'}->pop;
+	is $self->{'q'}->stats->{'retries'}, 1;
+}
+
+
+# In this test, we want to verify that if we unfail a job on a
+# day other than the one on which it originally failed, that we
+# the `failed` stats for the original day are decremented, not
+# today.
+#   1) Put a job
+#   2) Fail that job
+#   3) Advance the clock 24 hours
+#   4) Put the job back
+#   5) Check the stats with today, check failed = 0, failures = 0
+#   6) Check 'yesterdays' stats, check failed = 0, failures = 1
+sub test_stats_failed_original_day : Tests(6) {
+	my $self = shift;
+	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'stats_failed_original_day'});
+	my $job = $self->{'q'}->pop;
+	$job->fail('foo', 'bar');
+
+	my $stats = $self->{'q'}->stats;
+	is $stats->{'failed'}, 1;
+	is $stats->{'failures'}, 1;
+
+	$self->time_freeze;
+	$self->time_advance(86400);
+
+	$job->move('testing');
+	# Now check tomorrow's stats
+	my $today = $self->{'q'}->stats;
+	is $today->{'failed'}, 0;
+	is $today->{'failures'}, 0;
+	$self->time_unfreeze;
+	my $yesterday = $self->{'q'}->stats;
+	is $yesterday->{'failed'}, 0;
+	is $yesterday->{'failures'}, 1;
+}
+
 1;
 
 
