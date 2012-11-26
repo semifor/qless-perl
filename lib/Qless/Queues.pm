@@ -9,6 +9,7 @@ use strict; use warnings;
 use Qless::Queue;
 use JSON::XS qw(decode_json);
 use Time::HiRes qw();
+use Qless::Utils qw(fix_empty_array);
 
 sub new {
 	my $class = shift;
@@ -24,7 +25,9 @@ sub new {
 
 sub counts {
 	my ($self) = @_;
-	return decode_json($self->{'client'}->_queues([], Time::HiRes::time));
+	my $results = decode_json($self->{'client'}->_queues([], Time::HiRes::time));
+	$results = fix_empty_array($results);
+	return $results;
 }
 
 sub item {

@@ -54,7 +54,9 @@ Return the paginated jids of jobs tagged with a tag
 =cut
 sub tagged {
 	my ($self, $tag, $offset, $count) = @_;
-	return decode_json($self->{'client'}->_tag([], 'get', $tag, $offset||0, $count||25));
+	my $results = decode_json($self->{'client'}->_tag([], 'get', $tag, $offset||0, $count||25));
+	$results->{'jobs'} = fix_empty_array($results->{'jobs'});
+	return $results;
 }
 
 =head2 C<failed([$group, $offset, $count])>

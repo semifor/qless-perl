@@ -725,7 +725,7 @@ sub test_stats_complete : Tests(9) {
 sub test_queues : Tests(10) {
 	my $self = shift;
 	is $self->{'q'}->length, 0, 'Starting with empty queue';
-	is_deeply $self->{'client'}->queues->counts, {};
+	is_deeply $self->{'client'}->queues->counts, [];
 	# Now, let's actually add an item to a queue, but scheduled
 	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'queues'}, delay => 10);
 	my $expected = {
@@ -990,7 +990,7 @@ sub test_stats_failed_original_day : Tests(6) {
 sub test_workers : Tests(3) {
 	my $self = shift;
 	my $jid = $self->{'q'}->put('Qless::Job', {'test'=>'workers'});
-	is_deeply $self->{'client'}->workers->counts, {};
+	is_deeply $self->{'client'}->workers->counts, [];
 	my $job = $self->{'q'}->pop;
 	is_deeply $self->{'client'}->workers->counts, [{
 			name => $self->{'q'}->worker_name,

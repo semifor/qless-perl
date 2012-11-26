@@ -24,7 +24,9 @@ sub new {
 
 sub counts {
 	my ($self) = @_;
-	return decode_json($self->{'client'}->_workers([], Time::HiRes::time));
+	my $results = decode_json($self->{'client'}->_workers([], Time::HiRes::time));
+	$results = fix_empty_array($results);
+	return $results;
 }
 
 sub item {
