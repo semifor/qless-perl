@@ -31,10 +31,11 @@ sub _set_key {
 }
 
 sub priority { $#_ == 0 ? $_[0]->SUPER::priority : $_[0]->_set_key('priority', $_[1]) }
-sub retries  { $#_ == 0 ? $_[0]->SUPER::retries  : $_[0]->_set_key('retries',  $_[1]) }
-sub interval { $#_ == 0 ? $_[0]->SUPER::interval : $_[0]->_set_key('interval', $_[1]) }
+sub retries  { $#_ == 0 ? $_[0]->{'retries'}     : $_[0]->_set_key('retries',  $_[1]) }
+sub interval { $#_ == 0 ? $_[0]->{'interval'}    : $_[0]->_set_key('interval', $_[1]) }
 sub data     { $#_ == 0 ? $_[0]->SUPER::data     : $_[0]->_set_key('data',     encode_json($_[1])) }
 sub klass    { $#_ == 0 ? $_[0]->SUPER::klass    : $_[0]->_set_key('klass',    $_[1]) }
+sub count    { $_[0]->{'count'} }
 
 sub next {
 	my ($self) = @_;

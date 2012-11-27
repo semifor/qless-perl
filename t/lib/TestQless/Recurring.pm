@@ -84,7 +84,7 @@ sub test_recur_offset : Tests {
 # jobs
 # We should see these recurring jobs crop up under queues when 
 # we request them
-sub test_recur_off {
+sub test_recur_off : Tests {
 	my $self = shift;
 	$self->time_freeze;
 	my $jid = $self->{'q'}->recur('Qless::Job', {'test'=>'test_recur_off'}, interval => 100);
@@ -101,6 +101,41 @@ sub test_recur_off {
 	is $self->{'client'}->queues->counts->[0]->{'recurring'}, 0;
 	$self->time_advance(1000);
 	is $self->{'q'}->pop, undef;
+	$self->time_unfreeze;
+}
+
+
+
+# We should be able to list the jids of all the recurring jobs
+# in a queue
+sub test_jobs_recur : Tests {
+	my $self = shift;
+	my @jids = map { $self->{'q'}->recur('Qless::Job', { 'test' => 'test_jobs_recur'}, interval => $_ * 10 ) } 1..10;
+	is_deeply \@jids, $self->{'q'}->jobs->recurring;
+	foreach my $jid (@jids) {
+		is ref $self->{'client'}->jobs($jid), 'Qless::RecurringJob';
+	}
+}
+
+
+# We should be able to get the data for a recurring job
+sub test_recur_get : Tests {
+	my $self = shift;
+	$self->time_freeze;
+	my $jid = $self->{'q'}->recur('Qless::Job', {'test'=>'test_recur_get'}, interval => 100, priority => -10, tags => ['foo', 'bar'], retries => 2);
+	my $job = $self->{'client'}->jobs($jid);
+	is ref $job, 'Qless::RecurringJob';
+	is $job->priority, -10;
+	is $job->queue_name, 'testing';
+	is_deeply $job->data, {test => 'test_recur_get'};
+	is_deeply $job->tags, ['foo', 'bar'];
+	is $job->interval, 100;
+	is $job->retries, 2;
+	is $job->count, 0;
+
+	# Now let's pop a job
+	$self->{'q'}->pop;
+	is $self->{'client'}->jobs($jid)->count, 1;
 	$self->time_unfreeze;
 }
 
