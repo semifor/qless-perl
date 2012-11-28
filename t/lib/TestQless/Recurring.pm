@@ -139,4 +139,53 @@ sub test_recur_get : Tests {
 	$self->time_unfreeze;
 }
 
+sub test_passed_interval : Tests {
+	my $self = shift;
+	# We should get multiple jobs if we've passed the interval time
+	# several times.
+	$self->time_freeze;
+	my $jid = $self->{'q'}->recur('Qless::Job', {'test'=>'test_passed_interval'}, interval => 100);
+	is $self->{'q'}->pop->complete, 'complete';
+	$self->time_advance(850);
+	my @jobs = $self->{'q'}->pop(100);
+	is scalar @jobs, 8;
+	$_->complete foreach @jobs;
+
+	# If we are popping fewer jobs than the number of jobs that would have
+	# been scheduled, it should only make that many available
+	$self->time_advance(800);
+	@jobs = $self->{'q'}->pop(5);
+	is scalar @jobs, 5;
+	is $self->{'q'}->length, 5;
+	$_->complete foreach @jobs;
+
+	# Even if there are several recurring jobs, both of which need jobs
+	# scheduled, it only pops off the needed number
+	$jid = $self->{'q'}->recur('Qless::Job', {'test'=>'test_passed_interval_2'}, interval => 10);
+	$self->time_advance(500);
+	@jobs = $self->{'q'}->pop(5);
+	is scalar @jobs, 5;
+	is $self->{'q'}->length, 5;
+	$_->complete foreach @jobs;
+
+	# And if there are other jobs that are there, it should only move over
+	# as many recurring jobs as needed
+	$jid = $self->{'q'}->put('Qless::Job', {'foo'=>'bar'}, priority => 10);
+	@jobs = $self->{'q'}->pop(5);
+	is scalar @jobs, 5;
+	is $self->{'q'}->length, 6;
+
+	$self->time_unfreeze;
+}
+
+# We should see these recurring jobs crop up under queues when 
+# we request them
+sub test_queues_endpoint : Tests {
+	my $self = shift;
+	my $jid = $self->{'q'}->recur('Qless::Job', {'test'=>'test_queues_endpoint'}, interval => 100);
+
+	is $self->{'client'}->queues('testing')->counts->{'recurring'}, 1;
+	is $self->{'client'}->queues->counts->[0]->{'recurring'}, 1;
+}
+
 1;
