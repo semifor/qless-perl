@@ -38,7 +38,7 @@ sub new {
 	$self->{'config'}   = Qless::Config->new($self);
 
 	$self->_mk_private_lua_method($_) foreach ('cancel', 'config', 'complete', 'depends', 'fail', 'failed', 'get', 'heartbeat', 'jobs', 'peek',
-            'pop', 'priority', 'put', 'queues', 'recur', 'retry', 'stats', 'tag', 'track', 'workers');
+            'pop', 'priority', 'put', 'queues', 'recur', 'retry', 'stats', 'tag', 'track', 'unfail', 'workers');
 
 	$self;
 }
@@ -100,6 +100,15 @@ sub event { }
 Listen indefinitely for all events
 =cut
 sub events { }
+
+=head2 C<unfail($group, $queue[, $count])>
+
+Move jobs from the failed group to the provided queue
+=cut
+sub unfail {
+	my ($self, $group, $queue, $count) = @_;
+	return $self->_unfail([], Time::HiRes::time, $group, $queue, $count||500);
+}
 
 # accessors
 =head2 C<config>
