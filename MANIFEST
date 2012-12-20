@@ -47,8 +47,10 @@ share/retry.lua
 share/stats.lua
 share/tag.lua
 share/track.lua
+share/unfail.lua
 share/workers.lua
 t/lib/TestQless.pm
 t/lib/TestQless/General.pm
+t/lib/TestQless/Recurring.pm
 t/pod.t
 t/runtests.t
